@@ -1,0 +1,7 @@
+---
+const { footer = false } = Astro.props;
+---
+<a href="/" class:list={['brand', { 'brand-footer': footer }]} aria-label="PT Tiga Pilar Dewata — Beranda">
+  <span class="brand-symbol"><img src="/brand/symbol.png" width="64" height="64" alt="" /></span>
+  <span class="brand-name">PT TIGA PILAR<span>DEWATA</span></span>
+</a>

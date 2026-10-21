@@ -1,0 +1,20 @@
+﻿---
+import arrow from '@phosphor-icons/core/assets/regular/arrow-right.svg?raw';
+import arrowUpRight from '@phosphor-icons/core/assets/regular/arrow-up-right.svg?raw';
+import plane from '@phosphor-icons/core/assets/regular/airplane-takeoff.svg?raw';
+import compass from '@phosphor-icons/core/assets/regular/compass.svg?raw';
+import users from '@phosphor-icons/core/assets/regular/users.svg?raw';
+import clock from '@phosphor-icons/core/assets/regular/clock.svg?raw';
+import mail from '@phosphor-icons/core/assets/regular/envelope-simple.svg?raw';
+import phone from '@phosphor-icons/core/assets/regular/phone.svg?raw';
+import pin from '@phosphor-icons/core/assets/regular/map-pin.svg?raw';
+import menu from '@phosphor-icons/core/assets/regular/list.svg?raw';
+import close from '@phosphor-icons/core/assets/regular/x.svg?raw';
+interface Props { name?: string; }
+const { name = 'arrow' } = Astro.props;
+const icons: Record<string, string> = { arrow, 'arrow-up-right': arrowUpRight, plane, compass, users, clock, mail, phone, pin, menu, close };
+const source = icons[name];
+if (!source) throw new Error(`Unknown Phosphor icon: ${name}`);
+const body = source.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+---
+<svg width="24" height="24" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true" focusable="false" data-icon={name} data-icon-library="phosphor-regular" set:html={body} />

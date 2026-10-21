@@ -1,0 +1,12 @@
+---
+import Brand from './Brand.astro';
+import { company, navigation, contact } from '../data/company';
+---
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div><Brand footer /><p class="footer-tagline">{company.tagline}</p></div>
+    <div><p class="footer-label">Perusahaan</p><nav aria-label="Navigasi footer">{navigation.slice(1).map(item => <a href={item.href}>{item.label}</a>)}</nav></div>
+    <div><p class="footer-label">Hubungi Kami</p><a href={`mailto:${contact.email}`}>{contact.email}</a><br/><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a><p class="footer-location">Bali, Indonesia</p></div>
+  </div>
+  <div class="container footer-bottom"><span>© {new Date().getFullYear()} {company.name}</span></div>
+</footer>
