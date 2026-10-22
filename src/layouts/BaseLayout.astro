@@ -3,26 +3,42 @@ import '../styles/global.css';
 import { company } from '../data/company';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-interface Props { title?: string; description?: string; }
-const { title = 'Transportasi dan Perjalanan di Bali', description = company.description } = Astro.props;
+import { translate, pathFor, type Locale, type PageId } from '../i18n';
+interface Props { title?: string; description?: string; locale: Locale; page?: PageId; }
+const { locale, page, title = translate(locale)('Transportasi dan perjalanan di Bali'), description = translate(locale)(company.description) } = Astro.props;
+const t = translate(locale);
+const absolute = (path: string) => Astro.site ? new URL(path, Astro.site).href : path;
 ---
 <!doctype html>
-<html lang="id">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="robots" content="noindex, nofollow" />
+    {page && <>
+      {Astro.site && <link rel="canonical" href={absolute(pathFor(page, locale))} />}
+      <link rel="alternate" hreflang="en" href={absolute(pathFor(page, 'en'))} />
+      <link rel="alternate" hreflang="id" href={absolute(pathFor(page, 'id'))} />
+      <link rel="alternate" hreflang="x-default" href={absolute(pathFor(page, 'en'))} />
+    </>}
     <meta name="theme-color" content="#0B2138" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" href="/brand/icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
     <title>{title} | {company.name}</title>
+    <noscript><style is:global>@media(max-width:999px){.menu-toggle{display:none}.header-inner{flex-wrap:wrap}.main-nav{display:flex;position:static;width:100%;border:0}.site-header{position:relative}}</style></noscript>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Lewati ke konten</a>
-    <Header />
+    <a class="skip-link" href="#main-content">{t('Lewati ke konten')}</a>
+    {page ? <Header locale={locale} page={page} /> : <>
+      <div data-error-chrome="en"><Header locale="en" /></div>
+      <div data-error-chrome="id" hidden><Header locale="id" /></div>
+    </>}
     <main id="main-content" tabindex="-1"><slot /></main>
-    <Footer />
+    {page ? <Footer locale={locale} /> : <>
+      <div data-error-chrome="en"><Footer locale="en" /></div>
+      <div data-error-chrome="id" hidden><Footer locale="id" /></div>
+    </>}
   </body>
 </html>

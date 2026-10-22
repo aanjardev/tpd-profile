@@ -1,4 +1,8 @@
 ---
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
 import Icon from './Icon.astro';
 ---
-<section class="cta-section"><div class="container cta-inner"><div><h2>Hubungi Kami untuk Kerja Sama</h2></div><a class="button button-gold" href="/kontak/">Hubungi Kami <Icon /></a></div></section>
+<section class="cta-section"><div class="container cta-inner"><div><h2>{t("Hubungi Kami untuk Kerja Sama")}</h2></div><a class="button button-gold" href={pathFor("contact", locale)}>{t("Hubungi Kami")} <Icon /></a></div></section>

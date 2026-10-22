@@ -1,1 +1,7 @@
-<figure class="about-visual"><img src="/images/bali-connections.webp" srcset="/images/bali-connections-640.webp 640w, /images/bali-connections.webp 1200w" sizes="(max-width: 767px) 90vw, 45vw" alt="Visual arsitektur Bali dengan jalur yang menghubungkan paviliun" width="1448" height="1086" loading="lazy" /></figure>
+---
+import { translate, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
+---
+<figure class="about-visual"><img src="/images/bali-connections.webp" srcset="/images/bali-connections-640.webp 640w, /images/bali-connections.webp 1200w" sizes="(max-width: 767px) 90vw, 45vw" alt={t("Visual arsitektur Bali dengan jalur yang menghubungkan paviliun")} width="1448" height="1086" loading="lazy" /></figure>

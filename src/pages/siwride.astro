@@ -1,15 +1,4 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import PageHero from '../components/PageHero.astro';
-import SectionHeading from '../components/SectionHeading.astro';
-import ProductVisual from '../components/ProductVisual.astro';
-import ServiceCards from '../components/ServiceCards.astro';
-import CTA from '../components/CTA.astro';
-import Icon from '../components/Icon.astro';
+import Page from '../templates/siwride.astro';
 ---
-<BaseLayout title="Siwride — Produk Perusahaan" description="Siwride, platform manajemen transportasi dan pemesanan kendaraan dari PT Tiga Pilar Dewata.">
-  <PageHero label="Siwride" title="Siwride" description="Platform manajemen transportasi dan pemesanan kendaraan." />
-  <section class="section"><div class="container product-split"><ProductVisual /><div><SectionHeading eyebrow="Produk Perusahaan" title="Pemesanan Kendaraan di Bali" description="Produk PT Tiga Pilar Dewata untuk kebutuhan transportasi dan perjalanan di Bali." /><p>Hubungi kami untuk informasi perjalanan dan pemesanan Siwride.</p><a class="button" href="/kontak/">Hubungi Tim Siwride <Icon /></a></div></div></section>
-  <section id="layanan" class="section section-tint section-dark"><div class="container"><div class="center-heading"><SectionHeading eyebrow="Kategori Perjalanan" title="Kategori Layanan" /></div><ServiceCards /></div></section>
-  <CTA />
-</BaseLayout>
+<Page locale="en" />

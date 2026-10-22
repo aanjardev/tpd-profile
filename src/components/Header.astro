@@ -1,21 +1,28 @@
 ---
+import { translate, navigationFor, type Locale, type PageId } from '../i18n';
+interface Props { locale: Locale; page?: PageId; }
+const { locale } = Astro.props;
+const t = translate(locale);
+import LanguageSwitcher from './LanguageSwitcher.astro';
 import Brand from './Brand.astro';
 import Icon from './Icon.astro';
-import { navigation } from '../data/company';
+const navigation = navigationFor(locale);
 const path = Astro.url.pathname.replace(/\/$/, '') || '/';
 ---
 <header class="site-header">
   <div class="container header-inner">
-    <Brand />
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav"><span>Menu</span><span class="menu-open-icon"><Icon name="menu" /></span><span class="menu-close-icon"><Icon name="close" /></span></button>
-    <nav id="main-nav" class="main-nav" aria-label="Navigasi utama">
+    <Brand locale={locale} />
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls={`main-nav-${locale}`}><span>{t("Menu")}</span><span class="menu-open-icon"><Icon name="menu" /></span><span class="menu-close-icon"><Icon name="close" /></span></button>
+    <nav id={`main-nav-${locale}`} class="main-nav" aria-label={t("Navigasi utama")}>
       {navigation.map(item => <a href={item.href} aria-current={path === (item.href.replace(/\/$/, '') || '/') ? 'page' : undefined}>{item.label}</a>)}
+      <LanguageSwitcher locale={locale} page={Astro.props.page} />
     </nav>
   </div>
 </header>
 <script>
-  const toggle = document.querySelector<HTMLButtonElement>('.menu-toggle');
-  const nav = document.querySelector<HTMLElement>('#main-nav');
+  document.querySelectorAll<HTMLElement>('.site-header').forEach(header => {
+  const toggle = header.querySelector<HTMLButtonElement>('.menu-toggle');
+  const nav = header.querySelector<HTMLElement>('.main-nav');
   if (toggle && nav) {
     const closeMenu = (restoreFocus = false) => {
       toggle.setAttribute('aria-expanded', 'false');
@@ -30,10 +37,11 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
     nav.querySelectorAll('a').forEach(link => link.addEventListener('click', () => closeMenu()));
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') closeMenu(true); });
     document.addEventListener('click', event => { if (event.target instanceof Node && !nav.contains(event.target) && !toggle.contains(event.target)) closeMenu(); });
-    document.querySelector('.site-header')?.addEventListener('focusout', event => {
+    header.addEventListener('focusout', event => {
       const next = (event as FocusEvent).relatedTarget;
-      if (next instanceof Node && !document.querySelector('.site-header')?.contains(next)) closeMenu();
+      if (next instanceof Node && !header.contains(next)) closeMenu();
     });
     window.matchMedia('(min-width: 1000px)').addEventListener('change', () => closeMenu());
   }
+  });
 </script>

@@ -1,0 +1,22 @@
+---
+import { pathFor, translate, type Locale, type PageId } from '../i18n';
+interface Props { locale: Locale; page?: PageId; }
+const { locale, page = 'home' } = Astro.props;
+const t = translate(locale);
+---
+<div class="language-switcher" role="group" aria-label={t('Pilih bahasa')}>
+  {(['en', 'id'] as const).map(language => <a data-language-link href={pathFor(page, language)} hreflang={language} lang={language} aria-current={language === locale ? 'true' : undefined} aria-label={language === 'en' ? 'English' : 'Bahasa Indonesia'}>{language.toUpperCase()}</a>)}
+</div>
+<script>
+  const updateLanguageLinks = () => {
+    document.querySelectorAll<HTMLAnchorElement>('[data-language-link]').forEach(link => {
+      const target = new URL(link.href);
+      target.search = location.search;
+      target.hash = location.hash;
+      link.href = target.href;
+    });
+  };
+  updateLanguageLinks();
+  window.addEventListener('hashchange', updateLanguageLinks);
+  window.addEventListener('popstate', updateLanguageLinks);
+</script>

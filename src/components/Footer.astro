@@ -1,12 +1,17 @@
 ---
+import { translate, navigationFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
 import Brand from './Brand.astro';
-import { company, navigation, contact } from '../data/company';
+import { company, contact } from '../data/company';
+const navigation = navigationFor(locale);
 ---
 <footer class="site-footer">
   <div class="container footer-grid">
-    <div><Brand footer /><p class="footer-tagline">{company.tagline}</p></div>
-    <div><p class="footer-label">Perusahaan</p><nav aria-label="Navigasi footer">{navigation.slice(1).map(item => <a href={item.href}>{item.label}</a>)}</nav></div>
-    <div><p class="footer-label">Hubungi Kami</p><a href={`mailto:${contact.email}`}>{contact.email}</a><br/><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a><p class="footer-location">Bali, Indonesia</p></div>
+    <div><Brand locale={locale} footer /><p class="footer-tagline">{t(company.tagline)}</p></div>
+    <div><p class="footer-label">{t("Perusahaan")}</p><nav aria-label={t("Navigasi footer")}>{navigation.slice(1).map(item => <a href={item.href}>{item.label}</a>)}</nav></div>
+    <div><p class="footer-label">{t("Hubungi Kami")}</p><a href={`mailto:${contact.email}`}>{contact.email}</a><br/><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a><p class="footer-location">Bali, Indonesia</p></div>
   </div>
   <div class="container footer-bottom"><span>© {new Date().getFullYear()} {company.name}</span></div>
 </footer>

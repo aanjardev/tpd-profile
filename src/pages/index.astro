@@ -1,18 +1,4 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import SectionHeading from '../components/SectionHeading.astro';
-import ServiceCards from '../components/ServiceCards.astro';
-import CTA from '../components/CTA.astro';
-import Icon from '../components/Icon.astro';
-import AboutVisual from '../components/AboutVisual.astro';
+import Page from '../templates/home.astro';
 ---
-<BaseLayout>
-  <section class="home-hero"><div class="container hero-grid">
-    <div class="hero-copy"><p class="eyebrow">PT Tiga Pilar Dewata</p><h1>Transportasi dan perjalanan di Bali</h1><p class="lead">PT Tiga Pilar Dewata menghadirkan Siwride, platform pemesanan kendaraan dan pengelolaan transportasi.</p><div class="button-group"><a class="button" href="/tentang/">Tentang Perusahaan <Icon /></a><a class="button" href="/siwride/">Lihat Siwride <Icon /></a></div></div>
-    <figure class="hero-photo"><div class="photo-frame"><img src="/images/bali-journey.webp" srcset="/images/bali-journey-640.webp 640w, /images/bali-journey.webp 1200w" sizes="(max-width: 767px) 90vw, 45vw" alt="Visual perjalanan di jalan pesisir Bali dengan kendaraan dan gerbang khas Bali" width="1448" height="1086" fetchpriority="high" /></div><span class="photo-dots" aria-hidden="true"></span></figure>
-  </div></section>
-  <section class="section"><div class="container about-grid"><AboutVisual /><div><SectionHeading eyebrow="Tentang Kami" title="PT Tiga Pilar Dewata" description="Perusahaan yang berfokus pada transportasi dan perjalanan di Bali melalui produk Siwride." /><ul class="check-list"><li>Fokus transportasi dan perjalanan</li><li>Siwride sebagai produk perusahaan</li><li>Kerja sama travel dan transportasi</li></ul><a class="button" href="/tentang/">Tentang Perusahaan <Icon /></a></div></div></section>
-  <section class="section section-tint section-dark" id="layanan"><div class="container"><div class="center-heading"><SectionHeading eyebrow="Produk & Layanan" title="Layanan Siwride" description="Transfer bandara, paket wisata, perjalanan bersama, dan sewa kendaraan dengan pengemudi." /></div><ServiceCards /><div class="center-action"><a class="button" href="/siwride/">Lihat Produk <Icon /></a></div></div></section>
-  <section class="section"><div class="container"><div class="center-heading"><SectionHeading eyebrow="Kemitraan" title="Kerja Sama" description="Untuk pelaku travel, pemandu wisata, dan mitra transportasi." /></div><div class="three-grid compact-cards">{['Pelaku travel', 'Pemandu wisata', 'Mitra transportasi'].map((title,i)=><a class="partner-card" href="/kemitraan/"><span class="card-number">0{i+1}</span><h3>{title}</h3><Icon /></a>)}</div></div></section>
-  <CTA />
-</BaseLayout>
+<Page locale="en" />

@@ -5,14 +5,6 @@ export const company = {
   description: 'PT Tiga Pilar Dewata menghadirkan Siwride, platform pemesanan kendaraan dan pengelolaan transportasi dengan fokus perjalanan di Bali.',
 } as const;
 
-export const navigation = [
-  { href: '/', label: 'Beranda' },
-  { href: '/tentang/', label: 'Tentang Kami' },
-  { href: '/siwride/', label: 'Siwride' },
-  { href: '/kemitraan/', label: 'Kemitraan' },
-  { href: '/kontak/', label: 'Kontak' },
-] as const;
-
 export const contact = {
   email: 'info@siwride.com', phone: '+62 811-3810-5600', phoneHref: '+6281138105600',
   address: 'Jl. Mahendradatta Selatan, Gg. Robby William No. 99, Denpasar Barat, Bali',

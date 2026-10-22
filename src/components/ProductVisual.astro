@@ -1,13 +1,17 @@
 ---
+import { translate, type Locale } from '../i18n';
+interface Props { locale: Locale; compact?: boolean; }
+const { locale } = Astro.props;
+const t = translate(locale);
 import Icon from './Icon.astro';
 const { compact = false } = Astro.props;
 ---
-<figure class:list={['product-visual', { compact }]} aria-label="Konsep perjalanan Siwride">
+<figure class:list={['product-visual', { compact }]} aria-label={t("Konsep perjalanan Siwride")}>
   <div class="visual-top"><span>SIWRIDE</span><span>BALI · INDONESIA</span></div>
   <div class="route-art" aria-hidden="true">
     <svg viewBox="0 0 440 270" fill="none"><path class="contour" d="M-30 225C70 50 170 360 260 170S380 10 490 100M-30 195C70 20 170 330 260 140S380-20 490 70M-30 255C70 80 170 390 260 200S380 40 490 130"/><path class="route-line" d="M75 210V115c0-20 15-35 35-35h180c20 0 35 15 35 35v50"/><circle cx="75" cy="210" r="9"/><circle cx="325" cy="165" r="9"/><circle class="route-core" cx="325" cy="165" r="3"/></svg>
-    <span class="route-label start">Titik jemput</span><span class="route-label end">Tujuan</span>
+    <span class="route-label start">{t("Titik jemput")}</span><span class="route-label end">{t("Tujuan")}</span>
   </div>
-  <div class="visual-bottom"><span><strong>Transportasi dan perjalanan di Bali</strong></span><span class="visual-arrow"><Icon name="arrow-up-right" /></span></div>
+  <div class="visual-bottom"><span><strong>{t("Transportasi dan perjalanan di Bali")}</strong></span><span class="visual-arrow"><Icon name="arrow-up-right" /></span></div>
   
 </figure>

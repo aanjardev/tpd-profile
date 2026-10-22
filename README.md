@@ -15,7 +15,27 @@ Dev server: http://localhost:4321. Mode background: `npm run dev -- --background
 
 ## Halaman dan komponen
 
-Lima halaman: `/`, `/tentang/`, `/siwride/`, `/kemitraan/`, `/kontak/`, serta 404. Data bersama di `src/data/company.ts`, komponen di `src/components/`, gaya di `src/styles/global.css`. Menu mendukung keyboard, Escape, navigasi aktif, serta penutupan saat fokus keluar.
+Lima halaman dalam dua bahasa, serta 404. Data bersama di `src/data/company.ts`, komponen di `src/components/`, gaya di `src/styles/global.css`. Menu mendukung keyboard, Escape, navigasi aktif, serta penutupan saat fokus keluar.
+
+## Multibahasa EN/ID
+
+English adalah default. Bahasa mengikuti URL tanpa deteksi browser, cookie, atau penyimpanan preferensi.
+
+| Halaman | EN | ID |
+| --- | --- | --- |
+| Beranda | `/` | `/id/` |
+| Tentang | `/about/` | `/id/tentang/` |
+| Siwride | `/siwride/` | `/id/siwride/` |
+| Kemitraan | `/partnership/` | `/id/kemitraan/` |
+| Kontak | `/contact/` | `/id/kontak/` |
+
+Pemetaan route dan helper locale ada di `src/i18n/index.ts`. Kamus bertipe di `src/i18n/messages.ts` menggunakan teks Indonesia sebagai key; tambahkan entri pada kedua bahasa saat mengubah copy. Template halaman bersama ada di `src/templates/`; entry route hanya memilih locale. Gunakan `pathFor(page, locale)` untuk tautan internal dan teruskan locale ke komponen bersama.
+
+Switcher `EN | ID` membuka halaman yang sama. Query dan hash dipertahankan dengan JavaScript; tanpa JavaScript tautan bahasa tetap bekerja dan menu mobile ditampilkan langsung. ID section sama untuk kedua bahasa.
+
+URL lama `/tentang/`, `/kemitraan/`, `/kontak/` memakai redirect statis Astro ke versi Indonesia. Hosting harus melayani hasil `dist/` dan menggunakan `404.html` untuk path tidak ditemukan. Tanpa adapter, redirect berupa halaman HTML; HTTP 301 memerlukan konfigurasi hosting. 404 default English, lalu konten, metadata, navigasi, dan footer berubah ke Indonesia untuk path `/id/` melalui JavaScript.
+
+Set environment variable `SITE_URL` ke origin domain produksi sebelum `npm run build` untuk canonical dan alternate URL absolut. Jika belum diatur, canonical tidak dikeluarkan dan alternate menggunakan path lokal. `noindex, nofollow` tetap dipertahankan. Tidak ada deployment atau perubahan indexing otomatis.
 
 Desain mengikuti struktur Hoolix dari folder `template/` (codewithsadee/Hoolix), dengan palet putih, abu kebiruan, navy, dan aksen emas. Radius 2–4 px. Font Inter 400/500/600/700 dari `@fontsource/inter` dipaketkan lokal oleh Astro. Ikon Phosphor regular dari `@phosphor-icons/core` menjadi SVG inline melalui komponen `Icon`; tidak memakai React atau CDN. Lisensi aset disertakan di `public/licenses/`.
 
@@ -33,7 +53,9 @@ Website disiapkan untuk presentasi klien tanpa catatan draft atau placeholder di
 
 ## Verifikasi
 
-Build menghasilkan enam halaman statis. Pemeriksaan browser meliputi lebar 360/768/1440, reflow setara desktop zoom 200% (viewport CSS 720 px, DPR 2), gambar, tautan, keyboard/menu, font lokal, proporsi tombol, ukuran teks minimum, serta audit catatan publik. Screenshot dan laporan lokal berada di `output/qa/` (diabaikan Git).
+Jalankan `npm run build` lalu `npm run test:i18n` (Node.js 24). Build menghasilkan sepuluh halaman utama, satu 404, dan tiga halaman redirect. Tes memeriksa kesamaan key kamus, route dua arah, metadata, tautan/aset, navigasi sesuai locale, redirect, query/hash switcher, serta pemilihan bahasa 404.
+
+Pemeriksaan browser sebelum publikasi: kedua bahasa pada lebar 360/768/1440, tidak ada overflow, switcher tetap di halaman yang sama, akses langsung/refresh, menu dengan keyboard dan Escape, serta navigasi tanpa JavaScript. Verifikasi status redirect dan 404 pada hosting tujuan. Screenshot dan laporan lokal berada di `output/qa/` (diabaikan Git).
 
 ## Pemisahan section dan interaksi
 

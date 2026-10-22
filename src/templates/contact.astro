@@ -1,0 +1,15 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import Icon from '../components/Icon.astro';
+import { contact } from '../data/company';
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
+---
+<BaseLayout locale={locale} page="contact" title={t("Kontak")} description={t("Hubungi tim untuk informasi perusahaan, Siwride, dan peluang kerja sama.")}>
+  <PageHero label={t("Kontak")} title={t("Kontak")} description={t("Informasi perusahaan, Siwride, dan peluang kerja sama.")} />
+  <section class="section"><div class="container contact-grid"><div><SectionHeading eyebrow={t("Hubungi Kami")} title={t("Informasi Kontak")} /><p>{t("Hubungi kami melalui email atau telepon untuk informasi Siwride dan kerja sama.")}</p></div><div class="contact-list"><article><Icon name="mail"/><div><p class="eyebrow">{t("Email")}</p><a href={`mailto:${contact.email}`}>{contact.email}</a></div></article><article><Icon name="phone"/><div><p class="eyebrow">{t("Telepon")}</p><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a></div></article><article><Icon name="pin"/><div><p class="eyebrow">{t("Alamat Korespondensi")}</p><address>{contact.address}</address></div></article></div></div></section>
+</BaseLayout>

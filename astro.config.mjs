@@ -1,5 +1,18 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 
-// https://astro.build/config
-export default defineConfig({ output: 'static', devToolbar: { enabled: false } });
+export default defineConfig({
+  output: 'static',
+  site: process.env.SITE_URL || undefined,
+  i18n: {
+    locales: ['en', 'id'],
+    defaultLocale: 'en',
+    routing: { prefixDefaultLocale: false },
+  },
+  redirects: {
+    '/tentang/': '/id/tentang/',
+    '/kemitraan/': '/id/kemitraan/',
+    '/kontak/': '/id/kontak/',
+  },
+  devToolbar: { enabled: false },
+});

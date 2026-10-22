@@ -1,0 +1,18 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import CTA from '../components/CTA.astro';
+import { partners as partnerData } from '../data/company';
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
+const partners = partnerData.map(item => ({ ...item, title: t(item.title), description: t(item.description) }));
+---
+<BaseLayout locale={locale} page="partnership" title={t("Kemitraan")} description={t("Informasi kerja sama travel, pemandu wisata, dan transportasi dengan PT Tiga Pilar Dewata.")}>
+  <PageHero label={t("Kemitraan")} title={t("Kerja Sama dengan Siwride")} description={t("Untuk pelaku travel, pemandu wisata, dan mitra transportasi.")} />
+  <section class="section"><div class="container"><div class="center-heading"><SectionHeading eyebrow={t("Kemitraan")} title={t("Jenis Mitra")} /></div><div class="three-grid">{partners.map(item => <article class="editorial-card"><span class="card-number">{item.number}</span><h3>{item.title}</h3><p>{item.description}</p></article>)}</div></div></section>
+  <section class="section section-tint"><div class="container"><div class="center-heading"><SectionHeading eyebrow={t("Pengajuan Kerja Sama")} title={t("Cara Mengajukan Kerja Sama")} /></div><ol class="steps">{[t("Perkenalkan usaha Anda"), t("Diskusikan kebutuhan"), t("Bahas rencana kerja sama")].map((title,i)=><li><span class="step-number">0{i+1}</span><h3>{title}</h3></li>)}</ol></div></section>
+  <CTA locale={locale} />
+</BaseLayout>

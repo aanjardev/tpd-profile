@@ -1,0 +1,17 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import AboutVisual from '../components/AboutVisual.astro';
+import CTA from '../components/CTA.astro';
+import Icon from '../components/Icon.astro';
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
+---
+<BaseLayout locale={locale} page="about" title={t("Tentang Kami")} description={t("PT Tiga Pilar Dewata menghadirkan Siwride untuk kebutuhan transportasi dan perjalanan di Bali.")}>
+  <PageHero label={t("Tentang Kami")} title={t("Tentang PT Tiga Pilar Dewata")} description={t("Perusahaan di bidang transportasi dan perjalanan melalui Siwride.")} />
+  <section class="section"><div class="container about-grid"><AboutVisual locale={locale} /><div><SectionHeading title={t("Profil Perusahaan")} description={t("PT Tiga Pilar Dewata menghadirkan Siwride sebagai satu-satunya produk perusahaan, dengan fokus transportasi dan perjalanan di Bali.")} /><ul class="check-list"><li>{t("Platform pemesanan kendaraan")}</li><li>{t("Pengelolaan layanan bersama tim dan mitra")}</li><li>{t("Fokus perjalanan di Bali")}</li></ul><a class="button" href={pathFor("siwride", locale)}>{t("Lihat Produk Siwride")} <Icon /></a></div></div></section>
+  <CTA locale={locale} />
+</BaseLayout>

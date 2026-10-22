@@ -1,5 +1,9 @@
 ---
+import { translate, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
 import { services } from '../data/company';
 import Icon from './Icon.astro';
 ---
-<div class="service-grid">{services.map(service => <article class="service-card"><div class="service-icon"><Icon name={service.icon}/></div><div><h3>{service.title}</h3><p>{service.description}</p></div></article>)}</div>
+<div class="service-grid">{services.map(service => <article class="service-card"><div class="service-icon"><Icon name={service.icon}/></div><div><h3>{t(service.title)}</h3><p>{t(service.description)}</p></div></article>)}</div>

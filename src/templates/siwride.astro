@@ -1,0 +1,19 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import ProductVisual from '../components/ProductVisual.astro';
+import ServiceCards from '../components/ServiceCards.astro';
+import CTA from '../components/CTA.astro';
+import Icon from '../components/Icon.astro';
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props;
+const t = translate(locale);
+---
+<BaseLayout locale={locale} page="siwride" title={t("Siwride \u2014 Produk Perusahaan")} description={t("Siwride, platform manajemen transportasi dan pemesanan kendaraan dari PT Tiga Pilar Dewata.")}>
+  <PageHero label={t("Siwride")} title={t("Siwride")} description={t("Platform manajemen transportasi dan pemesanan kendaraan.")} />
+  <section class="section"><div class="container product-split"><ProductVisual locale={locale} /><div><SectionHeading eyebrow={t("Produk Perusahaan")} title={t("Pemesanan Kendaraan di Bali")} description={t("Produk PT Tiga Pilar Dewata untuk kebutuhan transportasi dan perjalanan di Bali.")} /><p>{t("Hubungi kami untuk informasi perjalanan dan pemesanan Siwride.")}</p><a class="button" href={pathFor("contact", locale)}>{t("Hubungi Tim Siwride")} <Icon /></a></div></div></section>
+  <section id="layanan" class="section section-tint section-dark"><div class="container"><div class="center-heading"><SectionHeading eyebrow={t("Kategori Perjalanan")} title={t("Kategori Layanan")} /></div><ServiceCards locale={locale} /></div></section>
+  <CTA locale={locale} />
+</BaseLayout>
