@@ -1,0 +1,58 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
+import { database } from '../../cms/database';
+
+let error = '';
+if (Astro.request.method === 'POST') {
+  try {
+    const form = Astro.locals.form!;
+    if (String(form.get('action') || '') !== 'read') throw new Error('Tindakan pesan tidak valid.');
+    const id = Number(form.get('id'));
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('Pesan tidak valid.');
+    database().prepare('UPDATE contact_messages SET read_at=COALESCE(read_at,?) WHERE id=?').run(new Date().toISOString(), id);
+    if (Astro.request.headers.get('x-requested-with') === 'fetch') return new Response(null, { status: 204 });
+    return Astro.redirect('/admin/messages/?saved=1', 303);
+  } catch (cause) { error = (cause as Error).message; }
+}
+const filter = Astro.url.searchParams.get('filter') === 'unread' ? 'unread' : 'all';
+const messagePage = Math.max(1, Number.parseInt(Astro.url.searchParams.get('page') || '1', 10) || 1);
+const messagePageSize = 10;
+const messageWhere = filter === 'unread' ? 'WHERE read_at IS NULL' : '';
+const messageTotal = Number((database().prepare(`SELECT COUNT(*) AS total FROM contact_messages ${messageWhere}`).get() as { total: number }).total || 0);
+const messagePages = Math.max(1, Math.ceil(messageTotal / messagePageSize));
+const safeMessagePage = Math.min(messagePage, messagePages);
+const messages = database().prepare(`SELECT * FROM contact_messages ${messageWhere} ORDER BY created_at DESC LIMIT ${messagePageSize} OFFSET ${(safeMessagePage - 1) * messagePageSize}`).all() as { id: number; name: string; email: string; phone: string; message: string; locale: string; created_at: string; read_at: string | null }[];
+const unread = Number((database().prepare('SELECT COUNT(*) AS total FROM contact_messages WHERE read_at IS NULL').get() as { total: number }).total || 0);
+---
+<AdminLayout title="Pesan masuk">
+  {error && <p class="notice error" role="alert">{error}</p>}
+  {Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Pesan ditandai sudah dibaca.</p>}
+  <section class="panel messages-panel">
+    <div class="panel-header message-panel-header"><div><p class="eyebrow">KOMUNIKASI</p><h2>Kotak masuk</h2></div><nav class="content-page-tabs message-filters" aria-label="Filter pesan"><a href="/admin/messages/" aria-current={filter === 'all' ? 'page' : undefined}>Semua pesan</a><a href="/admin/messages/?filter=unread" aria-current={filter === 'unread' ? 'page' : undefined}>Belum dibaca</a></nav><span class="badge">{unread} belum dibaca</span></div>
+    {messages.length ? <div class="table-wrap"><table class="message-table"><thead><tr><th>No.</th><th>Pengirim</th><th>Email</th><th>Telepon</th><th>Bahasa</th><th>Diterima</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{messages.map((message, index) => <tr class:list={{ 'is-unread': !message.read_at }} data-message-row={message.id}><td data-label="No.">{(safeMessagePage - 1) * messagePageSize + index + 1}</td><td data-label="Pengirim"><strong>{message.name}</strong></td><td data-label="Email"><a href={`mailto:${message.email}`}>{message.email}</a></td><td data-label="Telepon">{message.phone || '—'}</td><td data-label="Bahasa">{message.locale.toUpperCase()}</td><td data-label="Diterima"><time datetime={message.created_at}>{new Date(message.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</time></td><td data-label="Status"><span class:list={['badge', message.read_at ? 'live' : 'draft']} data-message-status={message.id}>{message.read_at ? 'Sudah dibaca' : 'Belum dibaca'}</span></td><td data-label="Aksi"><button class="icon-button" type="button" data-message-open={message.id} aria-label={`Lihat pesan dari ${message.name}`} title="Lihat pesan"><AdminIcon name="eye" size={16}/></button></td></tr>)}</tbody></table></div> : <p class="empty">{filter === 'unread' ? 'Tidak ada pesan belum dibaca.' : 'Belum ada pesan masuk.'}</p>}
+    {messagePages > 1 && <nav class="message-pagination" aria-label="Pagination pesan">{Array.from({ length: messagePages }, (_, index) => index + 1).map(page => <a href={`/admin/messages/?${filter === 'unread' ? 'filter=unread&' : ''}page=${page}`} aria-current={page === safeMessagePage ? 'page' : undefined}>{page}</a>)}</nav>}
+  </section>
+  {messages.map(message => <template id={`message-template-${message.id}`}><article><p class="eyebrow">PESAN DARI</p><h3>{message.name}</h3><p class="message-detail-meta"><a href={`mailto:${message.email}`}>{message.email}</a>{message.phone && <> · {message.phone}</>} · {new Date(message.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</p><p class="message-detail-body">{message.message}</p></article></template>)}
+  <dialog class="message-dialog" data-message-dialog aria-labelledby="message-dialog-title"><section class="panel"><div class="panel-header"><div><p class="eyebrow">DETAIL PESAN</p><h2 id="message-dialog-title">Pesan masuk</h2></div><button class="button secondary" type="button" data-message-close>Tutup</button></div><div data-message-detail></div></section></dialog>
+</AdminLayout>
+<script>
+  const messageDialog = document.querySelector<HTMLDialogElement>('[data-message-dialog]');
+  const messageDetail = document.querySelector<HTMLElement>('[data-message-detail]');
+  const csrf = document.querySelector<HTMLInputElement>('input[name="csrf"]')?.value || '';
+  document.querySelectorAll<HTMLElement>('[data-message-open]').forEach(button => button.addEventListener('click', async () => {
+    const id = button.dataset.messageOpen;
+    const template = id ? document.querySelector<HTMLTemplateElement>(`#message-template-${id}`) : null;
+    if (!template || !messageDialog || !messageDetail) return;
+    messageDetail.replaceChildren(template.content.cloneNode(true));
+    messageDialog.showModal();
+    const row = document.querySelector<HTMLElement>(`[data-message-row="${id}"]`);
+    const status = document.querySelector<HTMLElement>(`[data-message-status="${id}"]`);
+    if (status?.classList.contains('draft')) {
+      const body = new URLSearchParams({ csrf, id: id || '', action: 'read' });
+      const response = await fetch('/admin/messages/', { method: 'POST', headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+      if (response.ok) { status.textContent = 'Sudah dibaca'; status.classList.remove('draft'); status.classList.add('live'); row?.classList.remove('is-unread'); }
+    }
+  }));
+  document.querySelector<HTMLButtonElement>('[data-message-close]')?.addEventListener('click', () => messageDialog?.close());
+</script>

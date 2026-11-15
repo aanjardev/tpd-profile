@@ -1,0 +1,26 @@
+[Unit]
+Description=Tiga Pilar Dewata content website
+After=network.target
+
+[Service]
+Type=simple
+User=tpd-cms
+Group=tpd-cms
+WorkingDirectory=/var/www/tigapilardewata/cms/current
+EnvironmentFile=/etc/tigapilardewata-cms.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=46767
+Environment=CMS_DATA_DIR=/var/www/tigapilardewata/cms/shared
+ExecStart=/usr/bin/node dist/server/entry.mjs
+Restart=on-failure
+RestartSec=3
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/tigapilardewata/cms/shared
+
+[Install]
+WantedBy=multi-user.target

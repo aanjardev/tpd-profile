@@ -1,21 +1,25 @@
-﻿# PT Tiga Pilar Dewata
+# PT Tiga Pilar Dewata
 
-Company profile statis Astro + TypeScript + CSS, terpisah dari Siwride. Gunakan Node.js 24 LTS dan npm.
+Company profile Astro SSR + TypeScript + CSS, dengan admin dan blog, terpisah dari Siwride. Gunakan Node.js 24.22+ dan npm.
+
+Panduan admin, pembuatan akun, pengujian, backup, dan deployment CMS: [docs/ADMIN_BLOG.md](docs/ADMIN_BLOG.md). Rancangan modul dan data: [docs/RANCANGAN_ADMIN_BLOG.md](docs/RANCANGAN_ADMIN_BLOG.md).
 
 ## Menjalankan
 
 ```sh
 npm install
-npm run dev
+npm run admin:create
+npm run dev -- --background
+npm run check
 npm run build
-npm run preview
+npm start
 ```
 
-Dev server: http://localhost:4321. Mode background: `npm run dev -- --background`. Hasil publikasi ada di `dist/`; hosting mengarahkan error ke `404.html`. URL dirancang untuk root domain.
+Dev server: http://localhost:4321. Admin: `/admin/`; blog: `/blog/` dan `/id/blog/`. Buat akun dengan `npm run admin:create` (tanpa password bawaan). Mode background: `npm run dev -- --background`; kelola dengan `npm run astro -- dev status`, `dev logs`, dan `dev stop`. Build menghasilkan `dist/client/` serta `dist/server/`; jalankan server Node, jangan melayani root `dist/` langsung. URL dirancang untuk root domain. Data persisten berada di `CMS_DATA_DIR` (default `var/cms/`), di luar build.
 
 ## Halaman dan komponen
 
-Lima halaman dalam dua bahasa, serta 404. Data bersama di `src/data/company.ts`, komponen di `src/components/`, gaya di `src/styles/global.css`. Menu mendukung keyboard, Escape, navigasi aktif, serta penutupan saat fokus keluar.
+Enam halaman utama dalam dua bahasa, detail blog dinamis, 404, dan admin. Data awal di `src/data/company.ts` dan `src/i18n/messages.ts`; konten terbit dibaca dari SQLite melalui `src/cms/`. Komponen di `src/components/`, gaya publik di `src/styles/global.css`, dan gaya admin di `src/styles/admin.css`. Menu mendukung keyboard, Escape, navigasi aktif, serta penutupan saat fokus keluar.
 
 ## Multibahasa EN/ID
 
@@ -28,12 +32,14 @@ English adalah default. Bahasa mengikuti URL tanpa deteksi browser, cookie, atau
 | Siwride | `/siwride/` | `/id/siwride/` |
 | Kemitraan | `/partnership/` | `/id/kemitraan/` |
 | Kontak | `/contact/` | `/id/kontak/` |
+| Blog | `/blog/` | `/id/blog/` |
+| Artikel | `/blog/{slug}/` | `/id/blog/{slug}/` |
 
-Pemetaan route dan helper locale ada di `src/i18n/index.ts`. Kamus bertipe di `src/i18n/messages.ts` menggunakan teks Indonesia sebagai key; tambahkan entri pada kedua bahasa saat mengubah copy. Template halaman bersama ada di `src/templates/`; entry route hanya memilih locale. Gunakan `pathFor(page, locale)` untuk tautan internal dan teruskan locale ke komponen bersama.
+Pemetaan route dan helper locale ada di `src/i18n/index.ts`. Kamus awal di `src/i18n/messages.ts` menggunakan teks Indonesia sebagai key. Pengelola mengubah copy melalui admin; perubahan tersimpan di database. Saat menambah field melalui kode, siapkan data awal dan migrasi untuk database yang sudah ada pada kedua bahasa. Template halaman bersama ada di `src/templates/`; entry route hanya memilih locale. Gunakan `pathFor(page, locale)` untuk tautan internal dan teruskan locale ke komponen bersama.
 
 Switcher `EN | ID` membuka halaman yang sama. Query dan hash dipertahankan dengan JavaScript; tanpa JavaScript tautan bahasa tetap bekerja dan menu mobile ditampilkan langsung. ID section sama untuk kedua bahasa.
 
-URL lama `/tentang/`, `/kemitraan/`, `/kontak/` memakai redirect statis Astro ke versi Indonesia. Hosting harus melayani hasil `dist/` dan menggunakan `404.html` untuk path tidak ditemukan. Tanpa adapter, redirect berupa halaman HTML; HTTP 301 memerlukan konfigurasi hosting. 404 default English, lalu konten, metadata, navigasi, dan footer berubah ke Indonesia untuk path `/id/` melalui JavaScript.
+URL lama `/tentang/`, `/kemitraan/`, `/kontak/` memakai HTTP 301 dari middleware ke versi Indonesia, mempertahankan query. 404 dirender di server sesuai bahasa URL, termasuk tanpa JavaScript. Detail blog memakai pasangan slug terjemahan yang sudah terbit; terjemahan yang belum terbit tidak menjadi tautan switcher.
 
 Set environment variable `SITE_URL` ke origin domain produksi sebelum `npm run build` untuk canonical dan alternate URL absolut. Jika belum diatur, canonical tidak dikeluarkan dan alternate menggunakan path lokal. `noindex, nofollow` tetap dipertahankan. Tidak ada deployment atau perubahan indexing otomatis.
 
@@ -53,7 +59,9 @@ Website disiapkan untuk presentasi klien tanpa catatan draft atau placeholder di
 
 ## Verifikasi
 
-Jalankan `npm run build` lalu `npm run test:i18n` (Node.js 24). Build menghasilkan sepuluh halaman utama, satu 404, dan tiga halaman redirect. Tes memeriksa kesamaan key kamus, route dua arah, metadata, tautan/aset, navigasi sesuai locale, redirect, query/hash switcher, serta pemilihan bahasa 404.
+Deployment CMS Snail 2 (Nginx port 6767, Node loopback port 46767), setup awal, domain HTTPS, deploy, rollback, dan backup dijelaskan di [docs/ADMIN_BLOG.md](docs/ADMIN_BLOG.md). [docs/DEPLOY_SNAIL2.md](docs/DEPLOY_SNAIL2.md) menyimpan catatan hosting statis sebelumnya. Migrasi server belum dijalankan otomatis.
+
+Jalankan `npm run check`, `npm run build`, lalu `npm run test:cms`. `npm run test:i18n` menjalankan subset route/bahasa melalui HTTP. Tes CMS memakai database sementara terpisah dan memeriksa 12 route utama, aset, metadata, login, CSRF, origin, draft/preview/publikasi, riwayat konten, CRUD blog/kategori, terjemahan, redirect slug, pagination, media, password, dan persistensi setelah restart. `npm run test:browser` membutuhkan Chrome terpasang dan menambahkan pengujian interaksi serta lebar 360/768/1440.
 
 Pemeriksaan browser sebelum publikasi: kedua bahasa pada lebar 360/768/1440, tidak ada overflow, switcher tetap di halaman yang sama, akses langsung/refresh, menu dengan keyboard dan Escape, serta navigasi tanpa JavaScript. Verifikasi status redirect dan 404 pada hosting tujuan. Screenshot dan laporan lokal berada di `output/qa/` (diabaikan Git).
 

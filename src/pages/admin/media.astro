@@ -1,0 +1,52 @@
+﻿---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { database } from '../../cms/database';
+import { uploadMedia, deleteMedia, type MediaRow } from '../../cms/media';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
+let error = '';
+if (Astro.request.method === 'POST') {
+  try {
+    const form = Astro.locals.form!;
+    const action = String(form.get('action') || 'upload');
+    if (!['upload', 'delete'].includes(action)) throw new Error('Tindakan media tidak valid.');
+    if (action === 'delete') deleteMedia(String(form.get('id')),Astro.locals.admin!.id);
+    else { const file = form.get('image'); if (!(file instanceof File)) throw new Error('Pilih gambar untuk diunggah.'); await uploadMedia(file,Astro.locals.admin!.id); }
+    return Astro.redirect('/admin/media/?saved=1',303);
+  } catch (cause) { error = (cause as Error).message; }
+}
+const items = database().prepare('SELECT * FROM media ORDER BY created_at DESC').all() as MediaRow[];
+---
+<AdminLayout title="Pustaka Media">{error && <p class="notice error" role="alert">{error}</p>}{Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Pustaka media berhasil diperbarui.</p>}<section class="panel media-upload-panel"><div class="panel-header"><div><p class="eyebrow">PUSTAKA MEDIA</p><h2>Unggah gambar</h2></div><AdminIcon name="upload" size={22}/></div><form method="post" enctype="multipart/form-data" id="media-upload-form"><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><label class="field"><span>Pilih JPEG, PNG, WebP, atau AVIF</span><input type="file" name="image" id="media-image" accept="image/jpeg,image/png,image/webp,image/avif" required/><small>Maksimal 5 MB. Gambar di pustaka dapat diakses melalui tautan publik.</small></label><div class="media-upload-preview" data-media-upload-preview hidden><img data-media-upload-image alt="Pratinjau gambar yang dipilih"/><span data-media-upload-name></span></div><button class="button"><AdminIcon name="upload" size={16}/>Unggah gambar</button></form></section><section class="panel"><div class="panel-header"><div><p class="eyebrow">ASET TERSIMPAN</p><h2>Semua gambar</h2></div><span class="badge">{items.length} gambar</span></div>{items.length ? <div class="media-grid">{items.map(item => <article class="media-card"><button class="media-preview-trigger" type="button" data-media-preview-src={`/media/${item.filename}`} data-media-preview-alt={item.original_name} aria-label={`Perbesar ${item.original_name}`}><img src={`/media/${item.filename}`} alt={item.original_name} width={item.width} height={item.height} loading="lazy"/></button><div><strong>{item.original_name}</strong><small>{item.width} Ã— {item.height} Â· {Math.round(item.bytes/1024)} KB</small><label><span class="help">Tautan gambar</span><input value={`/media/${item.filename}`} readonly aria-label={`Tautan ${item.original_name}`}/></label><div class="media-actions"><button class="icon-button" type="button" data-copy={`/media/${item.filename}`} aria-label={`Salin tautan ${item.original_name}`} title="Salin tautan"><AdminIcon name="copy" size={16}/></button><form method="post" data-confirm="Hapus gambar ini dari pustaka?"><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><input type="hidden" name="id" value={item.id}/><button class="icon-button danger" name="action" value="delete" aria-label={`Hapus ${item.original_name}`} title="Hapus"><AdminIcon name="trash" size={16}/></button></form></div></div></article>)}</div> : <p class="empty">Belum ada gambar unggahan. Gambar bawaan website tetap tersedia.</p>}</section><dialog class="media-preview-dialog" data-media-preview-dialog><div class="panel"><div class="panel-header"><h2 data-media-preview-title>Pratinjau gambar</h2><button class="button secondary" type="button" data-media-preview-close>Tutup</button></div><img class="media-preview-large" data-media-preview-image alt=""/></div></dialog></AdminLayout>
+<script>
+  const mediaImage = document.querySelector<HTMLInputElement>('#media-image');
+  const uploadPreview = document.querySelector<HTMLElement>('[data-media-upload-preview]');
+  const uploadPreviewImage = document.querySelector<HTMLImageElement>('[data-media-upload-image]');
+  const uploadPreviewName = document.querySelector<HTMLElement>('[data-media-upload-name]');
+  let uploadObjectUrl: string | undefined;
+  mediaImage?.addEventListener('change', () => {
+    if (uploadObjectUrl) URL.revokeObjectURL(uploadObjectUrl);
+    uploadObjectUrl = undefined;
+    const file = mediaImage.files?.[0];
+    const validType = !!file && ['image/jpeg','image/png','image/webp','image/avif'].includes(file.type);
+    const invalid = !!file && (!file.size || file.size > 5 * 1024 * 1024 || !validType);
+    mediaImage.setCustomValidity(invalid ? 'Pilih gambar JPEG, PNG, WebP, atau AVIF maksimal 5 MB.' : '');
+    if (invalid || !file) { if (uploadPreview) uploadPreview.hidden = true; return; }
+    uploadObjectUrl = URL.createObjectURL(file);
+    if (uploadPreviewImage) uploadPreviewImage.src = uploadObjectUrl;
+    if (uploadPreviewName) uploadPreviewName.textContent = `${file.name} · ${Math.round(file.size / 1024)} KB`;
+    if (uploadPreview) uploadPreview.hidden = false;
+  });
+  window.addEventListener('pagehide', () => { if (uploadObjectUrl) URL.revokeObjectURL(uploadObjectUrl); });
+  const mediaPreviewDialog = document.querySelector<HTMLDialogElement>('[data-media-preview-dialog]');
+  const mediaPreviewImage = document.querySelector<HTMLImageElement>('[data-media-preview-image]');
+  const mediaPreviewTitle = document.querySelector<HTMLElement>('[data-media-preview-title]');
+  document.querySelectorAll<HTMLButtonElement>('[data-media-preview-src]').forEach(button => button.addEventListener('click', () => {
+    if (!mediaPreviewDialog || !mediaPreviewImage) return;
+    mediaPreviewImage.src = button.dataset.mediaPreviewSrc || '';
+    mediaPreviewImage.alt = button.dataset.mediaPreviewAlt || '';
+    if (mediaPreviewTitle) mediaPreviewTitle.textContent = button.dataset.mediaPreviewAlt || 'Pratinjau gambar';
+    mediaPreviewDialog.showModal();
+  }));
+  document.querySelector<HTMLButtonElement>('[data-media-preview-close]')?.addEventListener('click', () => mediaPreviewDialog?.close());
+</script>
+

@@ -1,0 +1,144 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { contentRow, saveContent, restoreContent } from '../../cms/content';
+import { globalFields, globalImageFields, readPath, applyContentForm } from '../../cms/forms';
+import { uploadMedia, deleteMedia } from '../../cms/media';
+import { editorPages, pageContent } from '../../cms/editor';
+import EditorialFields from '../../components/admin/EditorialFields.astro';
+import ContentItems from '../../components/admin/ContentItems.astro';
+import ImageUpload from '../../components/admin/ImageUpload.astro';
+import { pathFor, type Locale } from '../../i18n';
+const scope = ['global','id','en'].includes(Astro.url.searchParams.get('scope') || '') ? Astro.url.searchParams.get('scope')! : 'id';
+const requestedPage = Astro.url.searchParams.get('page');
+const requestedSection = Astro.url.searchParams.get('section');
+const selectedPage = editorPages.find(page => page.id === requestedPage) || editorPages.find(page => page.id === requestedSection) || editorPages.find(page => page.section === requestedSection) || editorPages[0];
+const section = selectedPage.section;
+let row = contentRow(scope), value = JSON.parse(row.draft), error = '';
+const globalRow = scope === 'global' ? row : contentRow('global');
+let globalValue = scope === 'global' ? value : JSON.parse(globalRow.draft);
+if (Astro.request.method === 'POST') {
+  const form = Astro.locals.form!;
+  const uploads: Awaited<ReturnType<typeof uploadMedia>>[] = [];
+  try {
+    const action = String(form.get('action') || 'draft');
+    if (!['draft', 'publish', 'restore'].includes(action)) throw new Error('Tindakan konten tidak valid.');
+    if (action === 'restore') restoreContent(scope, Number(form.get('history')), Number(form.get('version')), Astro.locals.admin!.id, scope === 'global' ? undefined : selectedPage.id);
+    else {
+      if (Number(form.get('version')) !== row.version) throw new Error('Konten sudah diubah di tab lain. Muat ulang sebelum menyimpan.');
+      value = applyContentForm(value, form, scope, section, selectedPage.id);
+      const imageKeys = scope === 'global' ? globalImageFields : globalImageFields.filter(([key]) => selectedPage.sections.some(item => item.image === key));
+      for (const [key,label] of imageKeys) {
+        const file = form.get(`image.${key}`);
+        // Multipart parsers may expose an unselected file input as an empty string.
+        if (file === null || file === '' || (file instanceof File && !file.size && !file.name)) continue;
+        if (!(file instanceof File)) throw new Error(`${label}: pilih file gambar untuk diunggah.`);
+        try {
+          const uploaded = await uploadMedia(file, Astro.locals.admin!.id);
+          uploads.push(uploaded);
+          globalValue.visuals[key] = uploaded.url;
+        } catch (cause) { throw new Error(`${label}: ${(cause as Error).message}`); }
+      }
+      const changedImages = imageKeys.some(([key]) => form.get(`image.${key}`) instanceof File && !!(form.get(`image.${key}`) as File).name);
+      saveContent(scope, value, Number(form.get('version')), Astro.locals.admin!.id, action === 'publish', scope === 'global' ? undefined : selectedPage.id, undefined, scope === 'global' || !changedImages ? undefined : { value: globalValue, version: globalRow.version, publish: action === 'publish' });
+    }
+    return Astro.redirect(`${Astro.url.pathname}?scope=${scope}&page=${selectedPage.id}&saved=1`, 303);
+  } catch (cause) {
+    for (const uploaded of uploads) {
+      try { deleteMedia(uploaded.id, Astro.locals.admin!.id); }
+      catch (cleanupError) { console.error('Gagal membersihkan unggahan yang belum tersimpan.', cleanupError); }
+    }
+    error = (cause as Error).message;
+    // Never show a discarded upload, or let a stale form overwrite a newer version on retry.
+    const latest = contentRow(scope);
+    if (latest.version !== row.version) value = JSON.parse(latest.draft);
+    row = latest;
+    const savedVisuals = JSON.parse(contentRow('global').draft).visuals;
+    globalValue.visuals = savedVisuals;
+    const imageKeys = scope === 'global' ? globalImageFields : globalImageFields.filter(([key]) => selectedPage.sections.some(item => item.image === key));
+    if (imageKeys.some(([key]) => { const file = form.get(`image.${key}`); return file instanceof File && !!file.name; })) error += ' Gambar pengganti belum disimpan. Pilih ulang file sebelum menyimpan.';
+  }
+}
+const csrf = Astro.locals.admin!.csrf;
+const currentChanged = scope === 'global' ? row.draft !== row.published : JSON.stringify(pageContent(JSON.parse(row.draft), selectedPage.id)) !== JSON.stringify(pageContent(JSON.parse(row.published), selectedPage.id));
+const previewPath = scope === 'global' ? '/' : pathFor(selectedPage.publicPage, scope as Locale);
+const globalFieldGroups = [
+  { id: 'identity', title: 'Identitas perusahaan', fields: globalFields.filter(([path]) => path.startsWith('company.')) },
+  { id: 'contact', title: 'Kontak utama', fields: globalFields.filter(([path]) => ['contact.email', 'contact.phone', 'contact.address'].includes(path)) },
+  { id: 'channels', title: 'Kanal resmi', fields: globalFields.filter(([path]) => ['contact.productUrl', 'contact.instagram', 'contact.facebook', 'contact.linkedin'].includes(path)) },
+  { id: 'product', title: 'Identitas visual Siwride', fields: globalFields.filter(([path]) => path.startsWith('visuals.')) },
+];
+const requiredGlobalFields = new Set(['company.name', 'company.brandTop', 'company.brandBottom', 'contact.email', 'contact.phone']);
+const globalInputType = (path: string) => path === 'contact.email' ? 'email' : path === 'contact.phone' ? 'tel' : ['contact.productUrl', 'contact.instagram', 'contact.facebook', 'contact.linkedin'].includes(path) ? 'url' : 'text';
+const globalInputPattern = (path: string) => path === 'contact.phone' ? '[0-9+ ().-]{8,24}' : ['contact.productUrl', 'contact.instagram', 'contact.facebook', 'contact.linkedin'].includes(path) ? 'https://.+' : undefined;
+---
+<AdminLayout title={scope === 'global' ? 'Identitas & Kontak' : 'Konten Website'}>
+  {error && <p class="notice error" role="alert">{error}</p>}{Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Perubahan berhasil disimpan.</p>}
+  {scope === 'global' ? <div class="notice">{currentChanged ? 'Ada draft yang belum terbit. ' : 'Konten tersimpan sudah sesuai versi publik. '}Publikasi menerapkan identitas, kontak, dan gambar bersama untuk EN & ID.</div> : <div class="content-controls"><nav class="content-page-tabs" aria-label="Halaman konten">{editorPages.map(page => <a href={`?scope=${scope}&page=${page.id}`} aria-current={page.id === selectedPage.id ? 'page' : undefined}>{page.label}</a>)}</nav><nav class="content-languages" aria-label="Bahasa konten">{[['id','Indonesia'],['en','English']].map(([language,label]) => <a href={`?scope=${language}&page=${selectedPage.id}`} aria-current={scope === language ? 'page' : undefined}>{label}</a>)}</nav></div>}
+  {scope !== 'global' && <div class="content-page-status"><span class:list={['badge',currentChanged ? 'draft' : 'live']}>{currentChanged ? 'Draft belum diterbitkan' : 'Sesuai versi terbit'}</span><small>{selectedPage.label} · {scope === 'id' ? 'Indonesia' : 'English'}</small></div>}
+  <form method="post" enctype="multipart/form-data" data-editor><input type="hidden" name="csrf" value={csrf}/><input type="hidden" name="version" value={row.version}/>
+    {scope === 'global' ? <section class="panel content-global-panel"><div class="global-settings-stack">{globalFieldGroups.map(group => <section class="global-settings-group" aria-labelledby={`global-group-${group.id}`}><div class="global-settings-heading"><h3 id={`global-group-${group.id}`}>{group.title}</h3></div><div class="form-grid">{group.fields.map(([path,label]) => <label class="field"><span>{label}</span><input name={path} type={globalInputType(path)} pattern={globalInputPattern(path)} required={requiredGlobalFields.has(path)} value={readPath(value,path)} maxlength="1200"/></label>)}</div></section>)}</div><section class="global-media-group"><div class="global-settings-heading"><h3>Gambar logo</h3></div><div class="image-upload-grid">{globalImageFields.filter(([key]) => key === 'logo').map(([key,label]) => <ImageUpload keyName={key} label={label} value={value.visuals[key]} />)}</div></section></section> : <div class="content-section-stack">{selectedPage.sections.map((item, index) => <section class="panel content-editor-panel" id={`content-section-${item.id}`}><div class="panel-header"><div class="section-heading"><span class="section-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><div><h2>{item.label}</h2></div></div></div><div class:list={['content-section-layout', item.image && 'has-section-image']}><div class="content-section-fields"><EditorialFields pageId={selectedPage.id} sectionId={item.id} messages={value.messages}/>{item.collection && <ContentItems section={item.collection} items={value[item.collection]} steps={value.steps}/>}</div>{item.image && <ImageUpload keyName={item.image} label={globalImageFields.find(([key]) => key === item.image)?.[1] || item.image} value={globalValue.visuals[item.image]} />}</div></section>)}</div>}
+    <div class="form-actions sticky-actions"><a class="button secondary" href={`${previewPath}?preview=1${selectedPage.id === 'services' && scope !== 'global' ? '#layanan' : ''}`} target="_blank" rel="noopener">Pratinjau draft tersimpan ↗</a><button class="button secondary" name="action" value="draft">Simpan draft</button><button class="button" name="action" value="publish">Terbitkan {scope === 'global' ? 'identitas & kontak' : 'halaman'}</button></div>
+  </form>
+  </AdminLayout>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-image-upload]').forEach(field => {
+    const input = field.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const preview = field.querySelector<HTMLImageElement>('[data-image-preview]')!;
+    const status = field.querySelector<HTMLElement>('[data-image-status]')!;
+    const cancel = field.querySelector<HTMLButtonElement>('[data-image-cancel]')!;
+    let objectUrl: string | undefined;
+    const reset = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = undefined;
+      preview.src = preview.dataset.currentSrc!;
+      status.textContent = 'Gambar tersimpan';
+      status.classList.remove('image-upload-error');
+      input.setCustomValidity('');
+      cancel.hidden = true;
+    };
+    input.addEventListener('change', () => {
+      reset();
+      const file = input.files?.[0];
+      if (!file) return;
+      const validType = file.type ? ['image/jpeg','image/png','image/webp','image/avif'].includes(file.type) : /\.(jpe?g|png|webp|avif)$/i.test(file.name);
+      if (!file.size || file.size > 5 * 1024 * 1024 || !validType) {
+        input.value = '';
+        input.setCustomValidity('Pilih JPEG, PNG, WebP, atau AVIF yang tidak kosong, maksimal 5 MB.');
+        status.textContent = 'Pilih JPEG, PNG, WebP, atau AVIF yang tidak kosong, maksimal 5 MB.';
+        status.classList.add('image-upload-error');
+        return;
+      }
+      input.setCustomValidity('');
+      objectUrl = URL.createObjectURL(file);
+      preview.src = objectUrl;
+      status.textContent = `${file.name} · Belum disimpan`;
+      cancel.hidden = false;
+    });
+    cancel.addEventListener('click', () => {
+      input.value = '';
+      reset();
+      input.focus();
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    window.addEventListener('pagehide', event => { if (!event.persisted && objectUrl) URL.revokeObjectURL(objectUrl); });
+  });
+  document.addEventListener('click', event => {
+    const target = (event.target as HTMLElement).closest<HTMLButtonElement>('button'); if (!target) return;
+    if (target.closest('summary')) event.preventDefault();
+    if (target.dataset.add) {
+      const template = document.querySelector<HTMLTemplateElement>(`#template-${target.dataset.add}`);
+      document.querySelector(`[data-repeat-list="${target.dataset.add}"]`)?.append(template!.content.cloneNode(true));
+    }
+    const item = target.closest<HTMLElement>('.repeat-item');
+    if (item && target.hasAttribute('data-remove')) item.remove();
+    if (item && target.dataset.move === 'up' && item.previousElementSibling) item.parentElement?.insertBefore(item, item.previousElementSibling);
+    if (item && target.dataset.move === 'down' && item.nextElementSibling) item.parentElement?.insertBefore(item.nextElementSibling, item);
+    if (target.hasAttribute('data-add') || target.hasAttribute('data-remove') || target.hasAttribute('data-move')) target.closest('form')?.dispatchEvent(new Event('input', { bubbles:true }));
+  });
+  document.addEventListener('input', event => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.name !== 'item.title') return;
+    const title = input.closest('.repeat-item')?.querySelector('summary strong');
+    if (title) title.textContent = input.value || 'Item tanpa nama';
+  });
+</script>

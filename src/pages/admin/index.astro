@@ -1,0 +1,42 @@
+﻿---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
+import { database } from '../../cms/database';
+import { contentRow } from '../../cms/content';
+import { dailyVisitors, visitorSummary } from '../../cms/analytics';
+const period = [7, 30, 90].includes(Number(Astro.url.searchParams.get('period'))) ? Number(Astro.url.searchParams.get('period')) : 7;
+const analytics = visitorSummary(period), daily = dailyVisitors(period), maxDaily = Math.max(1, ...daily.map(item => item.visitors));
+const unreadMessages = Number((database().prepare('SELECT COUNT(*) AS total FROM contact_messages WHERE read_at IS NULL').get() as { total: number }).total || 0);
+const averageViews = Math.round((analytics.views || 0) / period);
+const updates = database().prepare('SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 4').all() as { action: string; entity: string; created_at: string; name: string }[];
+const activityPage = Math.max(1, Number.parseInt(Astro.url.searchParams.get('activity_page') || '1', 10) || 1);
+const activityPageSize = 8;
+const activityTotal = Number((database().prepare('SELECT COUNT(*) AS total FROM audit').get() as { total: number }).total || 0);
+const activityPages = Math.max(1, Math.ceil(activityTotal / activityPageSize));
+const safeActivityPage = Math.min(activityPage, activityPages);
+const allUpdates = database().prepare(`SELECT a.*,u.name FROM audit a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT ${activityPageSize} OFFSET ${(safeActivityPage - 1) * activityPageSize}`).all() as { action: string; entity: string; created_at: string; name: string }[];
+const pending = ['global','id','en'].filter(scope => { const row = contentRow(scope); return row.draft !== row.published; });
+const labels: Record<string,string> = { 'content.publish':'Menerbitkan konten', 'content.draft':'Menyimpan draft konten', 'post.publish':'Menerbitkan artikel', 'post.draft':'Menyimpan draft artikel', 'post.delete':'Memindahkan artikel ke sampah', 'post.restore':'Memulihkan artikel', 'post.unpublish':'Menarik artikel', 'media.upload':'Mengunggah gambar', 'media.delete':'Menghapus gambar', 'category.save':'Menyimpan kategori', 'category.delete':'Menghapus kategori', 'account.password':'Mengubah password', 'content.translate':'Membuat draft terjemahan English' };
+---
+<AdminLayout title="Ringkasan">
+  {Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Perubahan berhasil disimpan.</p>}
+  {pending.length > 0 && <p class="notice"><AdminIcon name="clock" size={18}/><span>Ada perubahan konten yang belum terbit: {pending.map(scope => scope === 'global' ? 'identitas & kontak' : scope.toUpperCase()).join(', ')}. <a href="/admin/content/?scope=id">Buka editor konten</a> untuk meninjau dan menerbitkannya.</span></p>}
+  <div class="stats">
+    <div class="stat"><AdminIcon name="eye" size={20}/><span>Pengunjung unik</span><strong>{analytics.visitors || 0}</strong><small>Dalam {period} hari terakhir</small></div>
+    <div class="stat"><AdminIcon name="dashboard" size={20}/><span>Page views</span><strong>{analytics.views || 0}</strong><small>Dalam {period} hari terakhir</small></div>
+    <div class="stat"><AdminIcon name="clock" size={20}/><span>Rata-rata views harian</span><strong>{averageViews}</strong><small>Per hari dalam periode aktif</small></div>
+    <div class="stat"><AdminIcon name="mail" size={20}/><span>Pesan belum dibaca</span><strong>{unreadMessages}</strong><a href="/admin/messages/?filter=unread">Buka pesan <span aria-hidden="true">→</span></a></div>
+  </div>
+  <section class="panel analytics-panel"><div class="panel-heading-row"><div><p class="eyebrow">ANALYTICS WEBSITE</p><h2>Pengunjung website</h2></div><div class="analytics-periods">{[7,30,90].map(days => <a href={`/admin/?period=${days}`} aria-current={period === days ? 'page' : undefined}>{days} hari</a>)}</div></div><div class="analytics-summary"><div><span>Pengunjung unik</span><strong>{analytics.visitors || 0}</strong></div><div><span>Page views</span><strong>{analytics.views || 0}</strong></div></div>{daily.length ? <div class="analytics-chart" aria-label={`Pengunjung harian ${period} hari terakhir`}>{daily.map(item => <div class="analytics-bar"><div class="analytics-bar-fill" style={`height:${Math.max(8, item.visitors / maxDaily * 100)}%`} title={`${item.day}: ${item.visitors} pengunjung`}></div><small>{item.day.slice(5)}</small></div>)}</div> : <p class="empty">Belum ada data pengunjung.</p>}</section>
+  <div class="dashboard-grid">
+    <section class="panel quick-actions-panel"><div class="panel-heading-row"><div><p class="eyebrow">AKSI CEPAT</p><h2>Mulai dari sini</h2></div></div><div class="quick-actions-grid"><a class="quick-action-card" href="/admin/blog/new/"><span class="quick-action-icon"><AdminIcon name="article" size={20}/></span><strong>Tulis artikel baru</strong><span class="quick-action-arrow" aria-hidden="true">↗</span></a><a class="quick-action-card" href="/admin/content/?scope=id"><span class="quick-action-icon"><AdminIcon name="content" size={20}/></span><strong>Perbarui halaman website</strong><span class="quick-action-arrow" aria-hidden="true">↗</span></a><a class="quick-action-card" href="/admin/content/?scope=global"><span class="quick-action-icon"><AdminIcon name="identity" size={20}/></span><strong>Identitas & kontak</strong><span class="quick-action-arrow" aria-hidden="true">↗</span></a></div></section>
+    <section class="panel activity-panel"><div class="panel-heading-row"><div><p class="eyebrow">LOG SISTEM</p><h2>Aktivitas terbaru</h2></div></div>{updates.length ? <div class="activity-preview">{updates.map(update => <div class="quick-link activity-row"><span>{labels[update.action] || update.action}<small>{update.name} · {new Date(update.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</small></span></div>)}</div> : <p class="empty">Aktivitas pengelolaan akan muncul di sini.</p>}{activityTotal > updates.length && <button class="button secondary activity-more" type="button" data-open-activity>Tampilkan semua</button>}</section>
+  </div>
+  <dialog class="activity-dialog" data-activity-dialog aria-labelledby="activity-dialog-title"><section class="panel"><div class="panel-heading-row"><div><p class="eyebrow">LOG SISTEM</p><h2 id="activity-dialog-title">Semua aktivitas</h2></div><button class="button secondary" type="button" data-close-activity>Tutup</button></div>{allUpdates.length ? <div class="activity-dialog-list">{allUpdates.map(update => <div class="quick-link activity-row"><span>{labels[update.action] || update.action}<small>{update.name} · {new Date(update.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</small></span></div>)}</div> : <p class="empty">Belum ada aktivitas.</p>}{activityPages > 1 && <nav class="activity-pagination" aria-label="Pagination aktivitas">{Array.from({ length: activityPages }, (_, index) => index + 1).map(page => <a href={`/admin/?period=${period}&activity=1&activity_page=${page}`} aria-current={page === safeActivityPage ? 'page' : undefined}>{page}</a>)}</nav>}</section></dialog>
+</AdminLayout>
+<script>
+  const activityDialog = document.querySelector<HTMLDialogElement>('[data-activity-dialog]');
+  document.querySelector<HTMLButtonElement>('[data-open-activity]')?.addEventListener('click', () => activityDialog?.showModal());
+  document.querySelector<HTMLButtonElement>('[data-close-activity]')?.addEventListener('click', () => activityDialog?.close());
+  if (activityDialog && new URLSearchParams(location.search).get('activity') === '1') activityDialog.showModal();
+</script>

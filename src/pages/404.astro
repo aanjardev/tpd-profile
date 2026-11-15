@@ -1,31 +1,22 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Icon from '../components/Icon.astro';
-import { translate } from '../i18n';
-const t = translate('en');
+import { translate, pathFor, type Locale } from '../i18n';
+const originalPath = Astro.originPathname || Astro.url.pathname;
+const locale: Locale = originalPath === '/id' || originalPath.startsWith('/id/') ? 'id' : 'en';
+const t = translate(locale);
+Astro.response.status = 404;
 const keys = {
  title: 'Halaman Tidak Ditemukan',
  description: 'Halaman yang Anda cari tidak ditemukan. Kembali ke beranda PT Tiga Pilar Dewata.',
  message: 'Periksa alamat halaman atau kembali ke beranda.',
  back: 'Kembali ke Beranda',
 } as const;
-const translations = Object.fromEntries((['en', 'id'] as const).map(locale => [locale, Object.fromEntries(Object.entries(keys).map(([key, value]) => [key, translate(locale)(value)]))]));
 ---
-<BaseLayout locale="en" title={t(keys.title)} description={t(keys.description)}>
+<BaseLayout locale={locale} title={t(keys.title)} description={t(keys.description)}>
   <section class="section error-page container">
     <p class="eyebrow">404</p><h1 data-error="title">{t(keys.title)}</h1>
     <p data-error="message">{t(keys.message)}</p>
-    <a class="button" data-error-home href="/"><span data-error="back">{t(keys.back)}</span><Icon /></a>
+    <a class="button" data-error-home href={pathFor('home',locale)}><span data-error="back">{t(keys.back)}</span><Icon /></a>
   </section>
 </BaseLayout>
-<script is:inline define:vars={{ translations }}>
-  if (location.pathname === '/id' || location.pathname.startsWith('/id/')) {
-    document.documentElement.lang = 'id';
-    document.querySelectorAll('[data-error-chrome]').forEach(element => element.hidden = element.dataset.errorChrome !== 'id');
-    document.querySelector('.skip-link').textContent = 'Lewati ke konten';
-    document.title = translations.id.title + ' | PT Tiga Pilar Dewata';
-    document.querySelector('meta[name="description"]').content = translations.id.description;
-    document.querySelectorAll('[data-error]').forEach(element => element.textContent = translations.id[element.dataset.error]);
-    document.querySelector('[data-error-home]').href = '/id/';
-  }
-</script>

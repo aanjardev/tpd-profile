@@ -1,6 +1,6 @@
 ---
 import { translate, navigationFor, type Locale, type PageId } from '../i18n';
-interface Props { locale: Locale; page?: PageId; }
+interface Props { locale: Locale; page?: PageId; languagePaths?: Partial<Record<Locale, string>>; }
 const { locale } = Astro.props;
 const t = translate(locale);
 import LanguageSwitcher from './LanguageSwitcher.astro';
@@ -14,8 +14,8 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
     <Brand locale={locale} />
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls={`main-nav-${locale}`}><span>{t("Menu")}</span><span class="menu-open-icon"><Icon name="menu" /></span><span class="menu-close-icon"><Icon name="close" /></span></button>
     <nav id={`main-nav-${locale}`} class="main-nav" aria-label={t("Navigasi utama")}>
-      {navigation.map(item => <a href={item.href} aria-current={path === (item.href.replace(/\/$/, '') || '/') ? 'page' : undefined}>{item.label}</a>)}
-      <LanguageSwitcher locale={locale} page={Astro.props.page} />
+      {navigation.map(item => <a href={item.href} aria-current={path === (item.href.replace(/\/$/, '') || '/') || (item.href.endsWith('/blog/') && path.startsWith(item.href)) ? 'page' : undefined}>{item.label}</a>)}
+      <LanguageSwitcher locale={locale} page={Astro.props.page} languagePaths={Astro.props.languagePaths} />
     </nav>
   </div>
 </header>

@@ -1,0 +1,28 @@
+﻿---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { database, audit } from '../../cms/database';
+import { verifyPassword, passwordHash, sessionCookie } from '../../cms/auth';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
+let error = '';
+if (Astro.request.method === 'POST') {
+  try {
+    const form = Astro.locals.form!;
+    const row = database().prepare('SELECT password_hash FROM users WHERE id=?').get(Astro.locals.admin!.id) as { password_hash: string };
+    if (!await verifyPassword(String(form.get('current') || ''),row.password_hash)) throw new Error('Password saat ini tidak sesuai.');
+    const password = String(form.get('password') || '');
+    if (password !== form.get('confirm')) throw new Error('Konfirmasi password tidak cocok.');
+    database().prepare('UPDATE users SET password_hash=? WHERE id=?').run(await passwordHash(password),Astro.locals.admin!.id);
+    database().prepare('DELETE FROM sessions WHERE user_id=?').run(Astro.locals.admin!.id); audit(Astro.locals.admin!.id,'account.password',Astro.locals.admin!.id);
+    Astro.cookies.delete(sessionCookie,{ path:'/' }); return Astro.redirect('/admin/login/',303);
+  } catch (cause) { error = (cause as Error).message; }
+}
+---
+<AdminLayout title="Akun Saya">{error && <p class="notice error" role="alert">{error}</p>}<section class="panel account-profile-panel"><div class="account-profile"><span class="account-profile-avatar">{Astro.locals.admin!.name.slice(0, 1).toUpperCase()}</span><div><p class="eyebrow">PROFIL ADMIN</p><h2>{Astro.locals.admin!.name}</h2><p class="muted">{Astro.locals.admin!.email}</p></div></div><div class="account-security-heading"><div><p class="eyebrow">KEAMANAN AKUN</p><h3>Perbarui password</h3></div><AdminIcon name="shield" size={24}/></div><form method="post"><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><label class="field"><span>Password saat ini</span><input type="password" name="current" autocomplete="current-password" required maxlength="256"/></label><label class="field"><span>Password baru</span><input type="password" name="password" minlength="12" maxlength="256" autocomplete="new-password" required/></label><label class="field"><span>Konfirmasi password baru</span><input type="password" name="confirm" minlength="12" maxlength="256" autocomplete="new-password" required/></label><div class="form-actions"><button class="button"><AdminIcon name="save" size={16}/>Perbarui password</button></div></form></section></AdminLayout>
+<script>
+  const password = document.querySelector<HTMLInputElement>('[name="password"]');
+  const confirm = document.querySelector<HTMLInputElement>('[name="confirm"]');
+  const validatePassword = () => confirm?.setCustomValidity(confirm.value && confirm.value !== password?.value ? 'Konfirmasi password tidak cocok.' : '');
+  password?.addEventListener('input', validatePassword);
+  confirm?.addEventListener('input', validatePassword);
+</script>
+

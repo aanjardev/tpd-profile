@@ -1,11 +1,13 @@
 ---
 import '../styles/global.css';
-import { company } from '../data/company';
+import { getSiteContent } from '../cms/content';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { translate, pathFor, type Locale, type PageId } from '../i18n';
-interface Props { title?: string; description?: string; locale: Locale; page?: PageId; }
-const { locale, page, title = translate(locale)('Transportasi dan perjalanan di Bali'), description = translate(locale)(company.description) } = Astro.props;
+interface Props { title?: string; description?: string; locale: Locale; page?: PageId; canonicalPath?: string; languagePaths?: Partial<Record<Locale, string>>; image?: string; }
+const { locale, page } = Astro.props;
+const { company } = getSiteContent(locale);
+const { title = translate(locale)('Transportasi dan perjalanan di Bali'), description = translate(locale)(company.description), canonicalPath = page ? pathFor(page, locale) : undefined, languagePaths = page ? { en: pathFor(page, 'en'), id: pathFor(page, 'id') } : {}, image } = Astro.props;
 const t = translate(locale);
 const absolute = (path: string) => Astro.site ? new URL(path, Astro.site).href : path;
 ---
@@ -16,12 +18,15 @@ const absolute = (path: string) => Astro.site ? new URL(path, Astro.site).href :
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="robots" content="noindex, nofollow" />
-    {page && <>
-      {Astro.site && <link rel="canonical" href={absolute(pathFor(page, locale))} />}
-      <link rel="alternate" hreflang="en" href={absolute(pathFor(page, 'en'))} />
-      <link rel="alternate" hreflang="id" href={absolute(pathFor(page, 'id'))} />
-      <link rel="alternate" hreflang="x-default" href={absolute(pathFor(page, 'en'))} />
+    {canonicalPath && <>
+      {Astro.site && <link rel="canonical" href={absolute(canonicalPath)} />}
+      {Object.entries(languagePaths).map(([language, path]) => <link rel="alternate" hreflang={language} href={absolute(path!)} />)}
+      {languagePaths.en && <link rel="alternate" hreflang="x-default" href={absolute(languagePaths.en)} />}
     </>}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={page === 'blog' && canonicalPath !== pathFor('blog', locale) ? 'article' : 'website'} />
+    {image && <meta property="og:image" content={absolute(image)} />}
     <meta name="theme-color" content="#0B2138" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" type="image/png" href="/brand/icon-192.png" sizes="192x192" />
@@ -30,15 +35,10 @@ const absolute = (path: string) => Astro.site ? new URL(path, Astro.site).href :
     <noscript><style is:global>@media(max-width:999px){.menu-toggle{display:none}.header-inner{flex-wrap:wrap}.main-nav{display:flex;position:static;width:100%;border:0}.site-header{position:relative}}</style></noscript>
   </head>
   <body>
+    {Astro.locals.preview && <aside class="preview-banner">Pratinjau draft — hanya terlihat oleh admin. <a href={Astro.url.pathname}>Lihat versi publik</a></aside>}
     <a class="skip-link" href="#main-content">{t('Lewati ke konten')}</a>
-    {page ? <Header locale={locale} page={page} /> : <>
-      <div data-error-chrome="en"><Header locale="en" /></div>
-      <div data-error-chrome="id" hidden><Header locale="id" /></div>
-    </>}
+    <Header locale={locale} page={page} languagePaths={page ? languagePaths : undefined} />
     <main id="main-content" tabindex="-1"><slot /></main>
-    {page ? <Footer locale={locale} /> : <>
-      <div data-error-chrome="en"><Footer locale="en" /></div>
-      <div data-error-chrome="id" hidden><Footer locale="id" /></div>
-    </>}
+    <Footer locale={locale} />
   </body>
 </html>

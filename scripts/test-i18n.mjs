@@ -2,11 +2,20 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { en, id } from '../src/i18n/messages.ts';
-import { routes, resolvePath, pathFor } from '../src/i18n/index.ts';
+import { spawnSync } from 'node:child_process';
+
+// SSR pages must be verified through HTTP, including real status codes.
+if (existsSync('dist/server/entry.mjs')) {
+  const result = spawnSync(process.execPath, ['scripts/test-cms.mjs', '--i18n'], { stdio: 'inherit', windowsHide: true });
+  process.exit(result.status ?? 1);
+}
+const { routes, resolvePath, pathFor } = await import('../src/i18n/index.ts');
 
 assert.deepEqual(Object.keys(en).sort(), Object.keys(id).sort());
 for (const messages of [en, id]) assert.ok(Object.values(messages).every(value => typeof value === 'string' && value.trim()));
 let count = 0;
+const siteOrigin = process.env.SITE_URL ? new URL(process.env.SITE_URL).origin : '';
+const alternateUrl = path => `${siteOrigin}${path}`;
 for (const [page, locales] of Object.entries(routes)) {
   for (const [locale, path] of Object.entries(locales)) {
     assert.deepEqual(resolvePath(path), { page, locale });
@@ -15,10 +24,10 @@ for (const [page, locales] of Object.entries(routes)) {
     assert.match(html, new RegExp(`<html lang="${locale}"`));
     assert.match(html, /name="robots" content="noindex, nofollow"/);
     for (const target of ['en', 'id']) {
-      assert.ok(html.includes(`hreflang="${target}" href="${pathFor(page, target)}"`));
+      assert.ok(html.includes(`hreflang="${target}" href="${alternateUrl(pathFor(page, target))}"`));
       assert.ok(html.includes(`href="${pathFor(page, target)}" hreflang="${target}" lang="${target}"`));
     }
-    assert.ok(html.includes(`hreflang="x-default" href="${locales.en}"`));
+    assert.ok(html.includes(`hreflang="x-default" href="${alternateUrl(locales.en)}"`));
     for (const match of html.matchAll(/(?:href|src)="(\/[^"#?]*)(?:[?#][^"]*)?"/g)) {
       const target = match[1];
       assert.ok(existsSync(`dist${target}${target.endsWith('/') ? 'index.html' : ''}`), `${path}: missing ${target}`);

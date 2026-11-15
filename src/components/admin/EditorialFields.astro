@@ -1,0 +1,7 @@
+---
+import { editorSection, type EditorPageId } from '../../cms/editor';
+interface Props { pageId: EditorPageId; sectionId?: string; messages: Record<string, string>; }
+const { pageId, sectionId, messages } = Astro.props;
+const fields = editorSection(pageId, sectionId).fields;
+---
+<div class="editor-fields">{fields.map(field => <label class="field"><span>{field.label}</span><textarea name={`message:${field.key}`} rows="3" required maxlength={field.short ? 300 : 5000}>{messages[field.key]}</textarea></label>)}</div>

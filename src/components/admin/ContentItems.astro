@@ -1,0 +1,18 @@
+---
+interface Props {
+  section: 'services' | 'partners';
+  items: { title: string; description: string; icon?: string }[];
+  steps?: string[];
+}
+const { section, items, steps = [] } = Astro.props;
+const icons: Record<string,string> = { plane:'Pesawat', compass:'Kompas', users:'Orang', clock:'Jam', mail:'Email', phone:'Telepon', pin:'Lokasi' };
+---
+<div class="content-items" data-repeat-list="items">{items.map(item => <details class="repeat-item">
+  <summary><strong>{item.title}</strong><span><button type="button" data-move="up" aria-label="Naikkan item">↑</button> <button type="button" data-move="down" aria-label="Turunkan item">↓</button> <button type="button" data-remove>Hapus</button></span></summary>
+  <label class="field"><span>Nama {section === 'services' ? 'layanan' : 'jenis mitra'}</span><input name="item.title" value={item.title} required maxlength="160"/></label>
+  <label class="field"><span>Deskripsi</span><textarea name="item.description" required maxlength="1200" rows="3">{item.description}</textarea></label>
+  {section === 'services' && <label class="field"><span>Ikon</span><select name="item.icon">{Object.entries(icons).map(([key,label]) => <option selected={key === item.icon} value={key}>{label}</option>)}</select></label>}
+</details>)}</div>
+<button type="button" class="button secondary" data-add="items">+ Tambah item</button>
+<template id="template-items"><details class="repeat-item" open><summary><strong>Item baru</strong><span><button type="button" data-move="up" aria-label="Naikkan item">↑</button> <button type="button" data-move="down" aria-label="Turunkan item">↓</button> <button type="button" data-remove>Hapus</button></span></summary><label class="field"><span>Nama {section === 'services' ? 'layanan' : 'jenis mitra'}</span><input name="item.title" required maxlength="160"/></label><label class="field"><span>Deskripsi</span><textarea name="item.description" required maxlength="1200" rows="3"></textarea></label>{section === 'services' && <label class="field"><span>Ikon</span><select name="item.icon">{Object.entries(icons).map(([key,label]) => <option value={key}>{label}</option>)}</select></label>}</details></template>
+{section === 'partners' && <><h3 class="content-steps-heading">Langkah pengajuan kerja sama</h3><div data-repeat-list="steps">{steps.map(step => <div class="repeat-item"><label class="field"><span>Langkah</span><input name="step" value={step} maxlength="300" required/></label><button type="button" data-move="up" aria-label="Naikkan langkah">↑</button> <button type="button" data-move="down" aria-label="Turunkan langkah">↓</button> <button type="button" data-remove>Hapus</button></div>)}</div><button type="button" class="button secondary" data-add="steps">+ Tambah langkah</button><template id="template-steps"><div class="repeat-item"><label class="field"><span>Langkah</span><input name="step" maxlength="300" required/></label><button type="button" data-move="up" aria-label="Naikkan langkah">↑</button> <button type="button" data-move="down" aria-label="Turunkan langkah">↓</button> <button type="button" data-remove>Hapus</button></div></template></>}

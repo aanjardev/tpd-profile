@@ -4,14 +4,15 @@ interface Props { locale: Locale; }
 const { locale } = Astro.props;
 const t = translate(locale);
 import Brand from './Brand.astro';
-import { company, contact } from '../data/company';
+import { getSiteContent } from '../cms/content';
+const { company, contact } = getSiteContent(locale);
 const navigation = navigationFor(locale);
 ---
 <footer class="site-footer">
   <div class="container footer-grid">
     <div><Brand locale={locale} footer /><p class="footer-tagline">{t(company.tagline)}</p></div>
     <div><p class="footer-label">{t("Perusahaan")}</p><nav aria-label={t("Navigasi footer")}>{navigation.slice(1).map(item => <a href={item.href}>{item.label}</a>)}</nav></div>
-    <div><p class="footer-label">{t("Hubungi Kami")}</p><a href={`mailto:${contact.email}`}>{contact.email}</a><br/><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a><p class="footer-location">Bali, Indonesia</p></div>
+    <div><p class="footer-label">{t("Hubungi Kami")}</p><a href={`mailto:${contact.email}`}>{contact.email}</a><br/><a href={`tel:${contact.phoneHref}`}>{contact.phone}</a><p class="footer-location">{company.footerLocation}</p><div class="social-links">{Object.entries({ Instagram: contact.instagram, Facebook: contact.facebook, LinkedIn: contact.linkedin }).filter(([, url]) => url).map(([label, url]) => <a href={url} rel="noopener noreferrer" target="_blank">{label}</a>)}</div></div>
   </div>
   <div class="container footer-bottom"><span>© {new Date().getFullYear()} {company.name}</span></div>
 </footer>

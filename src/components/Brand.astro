@@ -1,11 +1,13 @@
 ---
 import { translate, pathFor, type Locale } from '../i18n';
+import { getSiteContent } from '../cms/content';
 interface Props { locale: Locale; footer?: boolean; }
 const { locale } = Astro.props;
 const t = translate(locale);
+const { company, visuals } = getSiteContent(locale);
 const { footer = false } = Astro.props;
 ---
-<a href={pathFor("home", locale)} class:list={['brand', { 'brand-footer': footer }]} aria-label={`PT Tiga Pilar Dewata — ${t("Beranda")}`}>
-  <span class="brand-symbol"><img src="/brand/symbol.png" width="64" height="64" alt="" /></span>
-  <span class="brand-name">PT TIGA PILAR<span>DEWATA</span></span>
+<a href={pathFor("home", locale)} class:list={['brand', { 'brand-footer': footer }]} aria-label={`${company.name} — ${t("Beranda")}`}>
+  <span class="brand-symbol"><img src={visuals.logo} width="64" height="64" alt="" /></span>
+  <span class="brand-name">{company.brandTop}<span>{company.brandBottom}</span></span>
 </a>

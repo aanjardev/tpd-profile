@@ -1,0 +1,29 @@
+﻿---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { database } from '../../../cms/database';
+import { postAction, postPath, type PostRow, type PostData } from '../../../cms/blog';
+import AdminIcon from '../../../components/admin/AdminIcon.astro';
+let error = '';
+if (Astro.request.method === 'POST') {
+  try {
+    const form = Astro.locals.form!;
+    postAction(String(form.get('id')), String(form.get('action')), Number(form.get('version')), Astro.locals.admin!.id);
+    return Astro.redirect('/admin/blog/?saved=1', 303);
+  } catch (cause) { error = (cause as Error).message; }
+}
+const status = Astro.url.searchParams.get('status') || 'all', locale = Astro.url.searchParams.get('locale') || '', query = (Astro.url.searchParams.get('q') || '').toLowerCase();
+const posts = (database().prepare('SELECT * FROM posts ORDER BY updated_at DESC').all() as PostRow[]).filter(post => {
+  if (status === 'trash' ? !post.deleted_at : !!post.deleted_at) return false;
+  if (locale && post.locale !== locale) return false;
+  if (status === 'published' && !post.published || status === 'draft' && post.published) return false;
+  return JSON.parse(post.draft).title.toLowerCase().includes(query);
+});
+---
+<AdminLayout title="Artikel Blog">
+  {error && <p class="notice error" role="alert">{error}</p>}{Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Artikel berhasil diperbarui.</p>}
+  <section class="panel blog-table-panel" aria-label="Pengelolaan artikel"><form class="toolbar blog-toolbar" method="get"><input type="search" name="q" value={Astro.url.searchParams.get('q') || ''} placeholder="Cari judul artikelâ€¦" aria-label="Cari judul artikel"/><select name="locale" aria-label="Bahasa"><option value="">Semua bahasa</option><option value="id" selected={locale === 'id'}>Indonesia</option><option value="en" selected={locale === 'en'}>English</option></select><select name="status" aria-label="Status">{[['all','Semua status'],['published','Terbit'],['draft','Draft'],['trash','Sampah']].map(([value,label]) => <option value={value} selected={value === status}>{label}</option>)}</select><button class="button secondary">Terapkan</button><a class="button" href="/admin/blog/new/?locale=id"><AdminIcon name="plus" size={16}/>Tulis artikel</a></form><div class="table-wrap"><table><caption class="visually-hidden">{status === 'trash' ? 'Sampah artikel' : 'Daftar artikel'}</caption><thead><tr><th>ARTIKEL</th><th>BAHASA</th><th>STATUS</th><th>TINDAKAN</th></tr></thead><tbody>{posts.map(post => {
+    const data = JSON.parse(post.draft) as PostData;
+    return <tr><td data-label="Artikel"><a href={`/admin/blog/${post.id}/`}>{data.title}</a><small>{new Date(post.updated_at).toLocaleString('id-ID', { timeZone:'Asia/Jakarta' })} WIB</small></td><td data-label="Bahasa">{post.locale.toUpperCase()}</td><td data-label="Status"><span class:list={['badge',post.published ? 'live' : 'draft']}>{post.deleted_at ? 'Sampah' : post.published ? 'Terbit' : 'Draft'}</span>{post.published && post.draft !== post.published && <small>Ada perubahan draft</small>}</td><td data-label="Tindakan"><div class="row-actions">{post.published && <a href={postPath({ locale:post.locale, content:JSON.parse(post.published) })} target="_blank" rel="noopener">Lihat â†—</a>}{!post.deleted_at && <a href={`/admin/blog/${post.id}/`}>Edit</a>}<form method="post" data-confirm={post.deleted_at ? 'Pulihkan artikel sebagai draft?' : 'Pindahkan artikel ke sampah? Artikel yang terbit akan ditarik dari publik.'}><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><input type="hidden" name="id" value={post.id}/><input type="hidden" name="version" value={post.version}/><button class="button secondary" name="action" value={post.deleted_at ? 'restore' : 'delete'}>{post.deleted_at ? 'Pulihkan' : 'Hapus'}</button></form></div></td></tr>;
+  })}{!posts.length && <tr><td colspan="4" class="empty">{status === 'trash' ? 'Sampah masih kosong.' : 'Belum ada artikel yang cocok.'}</td></tr>}</tbody></table></div><div class="blog-table-footer"><small>{posts.length} artikel</small><a href="/id/blog/" target="_blank" rel="noopener">Lihat blog â†—</a></div></section>
+</AdminLayout>
+

@@ -1,0 +1,12 @@
+---
+import BlogPost from '../../../templates/blog-post.astro';
+import { resolvePost, postById, postPath, type PublicPost } from '../../../cms/blog';
+let post = resolvePost('id',Astro.params.slug!);
+if (Astro.locals.preview && Astro.url.searchParams.has('post')) {
+  const draft = postById(Astro.url.searchParams.get('post')!);
+  if (draft && draft.locale === 'id' && !draft.deleted_at) post = { ...draft,content:JSON.parse(draft.draft) } as PublicPost;
+}
+if (!post) return Astro.rewrite('/404/');
+if (!Astro.locals.preview && post.content.slug !== Astro.params.slug) return Astro.redirect(postPath(post),301);
+---
+<BlogPost locale="id" post={post}/>

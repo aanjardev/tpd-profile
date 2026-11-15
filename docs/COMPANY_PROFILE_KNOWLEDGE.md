@@ -3,6 +3,8 @@
 Tanggal pembaruan: 21 Oktober 2026  
 Status: knowledge dan brief internal untuk project company profile terpisah.
 
+Pembaruan kebutuhan 8 November 2026: pengguna meminta implementasi admin untuk seluruh konten dan blog publik dengan CRUD. Batas awal tanpa CMS/backend di dokumen ini merupakan konteks versi pertama; kebutuhan terbaru dijelaskan di [RANCANGAN_ADMIN_BLOG.md](RANCANGAN_ADMIN_BLOG.md) dan [ADMIN_BLOG.md](ADMIN_BLOG.md). Pemisahan dari Siwride dan aturan fakta perusahaan tetap berlaku.
+
 ## 1. Tujuan dan keputusan project
 
 Dokumen ini menjadi acuan mandiri untuk membuat company profile PT Tiga Pilar Dewata: menyusun konten, menentukan struktur website, mengarahkan desain, dan menyiapkan materi publikasi. Dokumen dapat dipindahkan ke project baru tanpa memerlukan akses ke source code Siwride.

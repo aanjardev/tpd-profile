@@ -1,11 +1,14 @@
 ---
 import { pathFor, translate, type Locale, type PageId } from '../i18n';
-interface Props { locale: Locale; page?: PageId; }
+interface Props { locale: Locale; page?: PageId; languagePaths?: Partial<Record<Locale, string>>; }
 const { locale, page = 'home' } = Astro.props;
 const t = translate(locale);
 ---
 <div class="language-switcher" role="group" aria-label={t('Pilih bahasa')}>
-  {(['en', 'id'] as const).map(language => <a data-language-link href={pathFor(page, language)} hreflang={language} lang={language} aria-current={language === locale ? 'true' : undefined} aria-label={language === 'en' ? 'English' : 'Bahasa Indonesia'}>{language.toUpperCase()}</a>)}
+  {(['en', 'id'] as const).map(language => {
+    const href = Astro.props.languagePaths ? Astro.props.languagePaths[language] : pathFor(page, language);
+    return href ? <a data-language-link href={href} hreflang={language} lang={language} aria-current={language === locale ? 'true' : undefined} aria-label={language === 'en' ? 'English' : 'Bahasa Indonesia'}>{language.toUpperCase()}</a> : <span class="language-unavailable" aria-disabled="true">{language.toUpperCase()}</span>;
+  })}
 </div>
 <script>
   const updateLanguageLinks = () => {

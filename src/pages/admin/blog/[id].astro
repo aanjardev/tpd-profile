@@ -1,0 +1,144 @@
+﻿---
+import { randomUUID } from 'node:crypto';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { database } from '../../../cms/database';
+import { emptyPost, savePost, postById, postAction, categories, postPath, type PostData, type PostRow } from '../../../cms/blog';
+import type { Locale } from '../../../cms/defaults';
+import { uploadMedia, deleteMedia } from '../../../cms/media';
+import AdminIcon from '../../../components/admin/AdminIcon.astro';
+const isNew = Astro.params.id === 'new';
+const form = Astro.locals.form;
+const source = isNew && Astro.url.searchParams.get('translate') ? postById(Astro.url.searchParams.get('translate')!) : undefined;
+const row = !isNew ? postById(Astro.params.id!) : undefined;
+if (!isNew && (!row || row.deleted_at)) return Astro.redirect('/admin/blog/', 303);
+const locale: Locale = row?.locale || (Astro.url.searchParams.get('locale') === 'en' ? 'en' : 'id');
+const id = row?.id || String(form?.get('id') || randomUUID());
+const group = row?.translation_group || source?.translation_group || String(form?.get('group') || randomUUID());
+if (source) {
+  const existing = database().prepare('SELECT id FROM posts WHERE translation_group=? AND locale=?').get(group,locale) as { id: string } | undefined;
+  if (existing) return Astro.redirect(`/admin/blog/${existing.id}/`,303);
+}
+let data: PostData = row ? JSON.parse(row.draft) : emptyPost(), error = '';
+const uploads: Awaited<ReturnType<typeof uploadMedia>>[] = [];
+if (form) {
+  if (form.get('action') !== 'unpublish') data = Object.fromEntries(Object.keys(emptyPost()).map(key => [key,String(form.get(key) || '').trim()])) as PostData;
+  try {
+    const action = String(form.get('action') || 'draft');
+    if (!['draft', 'publish', 'unpublish'].includes(action)) throw new Error('Tindakan artikel tidak valid.');
+    const coverFile = form.get('coverFile');
+    if (action !== 'unpublish' && coverFile instanceof File && coverFile.size) {
+      const uploaded = await uploadMedia(coverFile, Astro.locals.admin!.id);
+      uploads.push(uploaded);
+      data.cover = uploaded.url;
+    }
+    if (action === 'unpublish') postAction(id,'unpublish',Number(form.get('version')),Astro.locals.admin!.id);
+    else savePost({ id, locale, group, data, version:Number(form.get('version')), publish:action === 'publish', userId:Astro.locals.admin!.id });
+    return Astro.redirect(`/admin/blog/${id}/?saved=1`,303);
+  } catch (cause) {
+    for (const uploaded of uploads) {
+      try { deleteMedia(uploaded.id, Astro.locals.admin!.id); }
+      catch (cleanupError) { console.error('Gagal membersihkan sampul artikel yang belum tersimpan.', cleanupError); }
+    }
+    error = (cause as Error).message;
+  }
+}
+const choices = categories();
+const media = database().prepare('SELECT filename,original_name FROM media ORDER BY created_at DESC').all() as { filename: string; original_name: string }[];
+const translations = row ? database().prepare('SELECT * FROM posts WHERE translation_group=? AND locale<>? AND deleted_at IS NULL').all(group,locale) as PostRow[] : [];
+const opposite = locale === 'id' ? 'en' : 'id';
+---
+<AdminLayout title={isNew ? 'Tulis artikel baru' : 'Edit artikel'}>
+  {error && <p class="notice error" role="alert">{error}</p>}{Astro.url.searchParams.has('saved') && <p class="notice success" role="status">Artikel berhasil disimpan.</p>}
+  <form method="post" enctype="multipart/form-data" data-editor id="post-editor"><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><input type="hidden" name="id" value={id}/><input type="hidden" name="group" value={group}/><input type="hidden" name="version" value={row?.version || 0}/>
+  <div class="editor-grid"><section class="panel"><label class="field"><span>Judul artikel</span><input name="title" id="post-title" value={data.title} placeholder="Tuliskan judul yang jelas dan menarik" maxlength="200" required/></label><label class="field"><span>Alamat artikel (slug)</span><input name="slug" id="post-slug" value={data.slug} placeholder="contoh-judul-artikel" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="150" required/><small>{locale === 'id' ? '/id' : ''}/blog/<span id="slug-example">{data.slug || 'alamat-artikel'}</span>/ Â· Perubahan slug pada artikel terbit membuat pengalihan dari alamat lama.</small></label><label class="field"><span>Ringkasan</span><textarea name="excerpt" maxlength="500" rows="3" placeholder="Ringkasan yang tampil di kartu artikel">{data.excerpt}</textarea></label>
+    <label class="field"><span>Isi artikel</span><div class="editor-tabs"><button type="button" class="button secondary" aria-selected="true" data-editor-tab="write">Tulis artikel</button><button type="button" class="button secondary" aria-selected="false" data-editor-tab="preview">Pratinjau</button></div><div class="editor-toolbar" role="group" aria-label="Format artikel"><button type="button" data-insert="heading">Judul H2</button><button type="button" data-insert="bold"><strong>B</strong></button><button type="button" data-insert="italic"><em>I</em></button><button type="button" data-insert="list">Daftar</button><button type="button" data-insert="link">Tautan</button><button type="button" data-insert="image">Gambar</button><button type="button" id="markdown-preview-button">Muat pratinjau</button></div><textarea class="markdown-input" id="post-body" name="body" maxlength="150000" placeholder="Mulai menulis cerita perusahaanâ€¦">{data.body}</textarea><small>Untuk menambahkan gambar di dalam artikel, buka <a href="/admin/media/" target="_blank" rel="noopener">Pustaka Media</a> pada tab baru.</small></label><div class="markdown-preview" id="markdown-preview" hidden aria-live="polite"></div>
+  </section><aside><section class="panel"><div class="panel-header"><h2>Publikasi</h2><span class:list={['badge',row?.published ? 'live' : 'draft']}>{row?.published ? 'Sedang terbit' : 'Draft'}</span></div><label class="field"><span>Penulis</span><input name="author" value={data.author} maxlength="120"/></label><label class="field"><span>Kategori</span><select name="categoryId"><option value="">Tanpa kategori</option>{choices.map(category => <option value={category.id} selected={data.categoryId === category.id}>{locale === 'id' ? category.name_id : category.name_en}</option>)}</select></label><a href="/admin/categories/" target="_blank" rel="noopener">Kelola kategori â†—</a></section><section class="panel"><h2>Gambar sampul</h2><div class="cover-preview" data-cover-preview hidden><img src="" alt="Pratinjau gambar sampul"/><button class="button secondary" type="button" data-cover-change>Ubah gambar</button></div><dialog class="crop-dialog" data-crop-dialog><div class="panel"><div class="panel-header"><h2>Atur gambar sampul</h2><button class="button secondary" type="button" data-crop-cancel>Batal</button></div><p class="help">Geser gambar untuk mengatur posisi. Gunakan roda mouse atau pinch untuk memperbesar.</p><div class="crop-stage"><canvas data-crop-canvas width="960" height="640"></canvas><span class="crop-shade crop-shade-top" aria-hidden="true"></span><span class="crop-shade crop-shade-right" aria-hidden="true"></span><span class="crop-shade crop-shade-bottom" aria-hidden="true"></span><span class="crop-shade crop-shade-left" aria-hidden="true"></span><span class="crop-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="crop-actions"><button class="button secondary" type="button" data-crop-reset>Reset</button><button class="button" type="button" data-crop-save>Simpan crop</button></div></div></dialog><div class="cover-source-options" data-cover-options><div><button class="button secondary" type="button" data-media-open>Pilih gambar dari pustaka</button></div><span class="cover-source-or">atau</span><div><label class="button secondary" for="cover-file">Unggah dari komputer</label><input class="visually-hidden" id="cover-file" type="file" name="coverFile" accept="image/jpeg,image/png,image/webp,image/avif"/></div></div><input type="hidden" name="cover" id="post-cover" value={data.cover}/><label class="field"><span>Deskripsi gambar (alt)</span><input name="coverAlt" value={data.coverAlt} maxlength="500"/></label><dialog class="media-dialog" data-media-dialog><div class="panel"><div class="panel-header"><h2>Pilih gambar sampul</h2><button class="button secondary" type="button" data-media-close>Tutup</button></div><div class="media-picker-grid">{media.map(asset => <button type="button" class="media-picker-item" data-media-url={`/media/${asset.filename}`}><img src={`/media/${asset.filename}`} alt={asset.original_name} loading="lazy"/><span>{asset.original_name}</span></button>)}</div></div></dialog></section><section class="panel"><h2>SEO</h2><label class="field"><span>Judul SEO</span><input name="seoTitle" value={data.seoTitle} maxlength="200"/><small>Kosongkan untuk memakai judul artikel.</small></label><label class="field"><span>Deskripsi SEO</span><textarea name="seoDescription" maxlength="500">{data.seoDescription}</textarea><small>Kosongkan untuk memakai ringkasan.</small></label></section></aside></div>
+  <div class="form-actions sticky-actions"><a class="button secondary" href="/admin/blog/"><AdminIcon name="restore" size={15}/>Kembali</a>{row && <a class="button secondary" href={`${postPath({ locale,content:data })}?preview=1&post=${id}`} target="_blank" rel="noopener">Pratinjau draft tersimpan â†—</a>}<button class="button secondary" name="action" value="draft"><AdminIcon name="save" size={15}/>Simpan draft</button><button class="button" name="action" value="publish">{row?.published ? 'Terbitkan perubahan' : 'Terbitkan artikel'}</button></div>
+  </form>
+  {row && <div class="panel" style="margin-top:24px"><h2>Terjemahan & status</h2><div class="toolbar">{translations.length ? translations.map(post => <a class="button secondary" href={`/admin/blog/${post.id}/`}>Edit {post.locale.toUpperCase()}</a>) : <a class="button secondary" href={`/admin/blog/new/?locale=${opposite}&translate=${id}`}>+ Buat versi {opposite.toUpperCase()}</a>}{row.published && <><a class="button secondary" href={postPath({ locale,content:JSON.parse(row.published) })} target="_blank" rel="noopener">Lihat versi publik â†—</a><form method="post" data-confirm="Tarik artikel dari website publik? Draft tetap tersimpan."><input type="hidden" name="csrf" value={Astro.locals.admin!.csrf}/><input type="hidden" name="version" value={row.version}/><button class="button danger" name="action" value="unpublish">Tarik dari publik</button></form></>}</div></div>}
+</AdminLayout>
+<script>
+  const title = document.querySelector<HTMLInputElement>('#post-title')!, slug = document.querySelector<HTMLInputElement>('#post-slug')!, body = document.querySelector<HTMLTextAreaElement>('#post-body')!;
+  let manual = !!slug.value;
+  const updateExample = () => { document.querySelector('#slug-example')!.textContent = slug.value || 'alamat-artikel'; };
+  const validateSlug = () => { slug.setCustomValidity(['feed','index','category','page'].includes(slug.value) ? 'Slug ini dicadangkan sistem. Gunakan slug lain.' : ''); };
+  slug.addEventListener('input', () => { manual = !!slug.value; updateExample(); validateSlug(); });
+  title.addEventListener('input', () => { if (!manual) { slug.value = title.value.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,150); updateExample(); } });
+  const mediaDialog = document.querySelector<HTMLDialogElement>('[data-media-dialog]');
+  const cropDialog = document.querySelector<HTMLDialogElement>('[data-crop-dialog]');
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-crop-canvas]')!;
+  const cropCtx = canvas.getContext('2d')!;
+  const coverPreview = document.querySelector<HTMLElement>('[data-cover-preview]')!;
+  const coverOptions = document.querySelector<HTMLElement>('[data-cover-options]')!;
+  const coverImage = coverPreview.querySelector<HTMLImageElement>('img')!;
+  const coverFile = document.querySelector<HTMLInputElement>('#cover-file')!;
+  const coverUrl = document.querySelector<HTMLInputElement>('#post-cover')!;
+  const coverAlt = document.querySelector<HTMLInputElement>('[name="coverAlt"]')!;
+  const frame = { x: 120, y: 80, width: 720, height: 480 };
+  const pointers = new Map<number, { x: number; y: number }>(); const canvasPoint = (event: PointerEvent) => ({ x: event.offsetX * canvas.width / canvas.clientWidth, y: event.offsetY * canvas.height / canvas.clientHeight });
+  let cropImage: HTMLImageElement | undefined, cropObjectUrl: string | undefined, committedFile: File | undefined;
+  let cropZoom = 1, panX = 0, panY = 0, dragStart: { x: number; y: number; panX: number; panY: number } | undefined;
+  let pinchStart: { distance: number; zoom: number; x: number; y: number } | undefined;
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+  const geometry = () => {
+    if (!cropImage) return undefined;
+    const scale = Math.max(frame.width / cropImage.width, frame.height / cropImage.height) * cropZoom;
+    const width = cropImage.width * scale, height = cropImage.height * scale;
+    panX = clamp(panX, -(width - frame.width) / 2, (width - frame.width) / 2);
+    panY = clamp(panY, -(height - frame.height) / 2, (height - frame.height) / 2);
+    return { scale, width, height, x: frame.x + (frame.width - width) / 2 + panX, y: frame.y + (frame.height - height) / 2 + panY };
+  };
+  const drawCrop = () => { const g = geometry(); if (!g || !cropImage) return; cropCtx.clearRect(0, 0, canvas.width, canvas.height); cropCtx.drawImage(cropImage, g.x, g.y, g.width, g.height); };
+  const resetCrop = () => { cropZoom = 1; panX = 0; panY = 0; drawCrop(); };
+  const distance = () => { const points = [...pointers.values()]; return points.length < 2 ? 0 : Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y); };
+  const midpoint = () => { const points = [...pointers.values()]; return { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 }; };
+  const openCrop = (url: string, file?: File) => { if (cropObjectUrl) URL.revokeObjectURL(cropObjectUrl); cropObjectUrl = file ? URL.createObjectURL(file) : undefined; cropImage = new Image(); cropImage.onload = () => { resetCrop(); cropDialog?.showModal(); }; cropImage.onerror = () => { cropImage = undefined; }; cropImage.src = cropObjectUrl || url; };
+  const showCover = (url: string) => { coverImage.src = url; coverPreview.hidden = false; coverOptions.hidden = true; };
+  const showSources = () => { coverPreview.hidden = true; coverOptions.hidden = false; };
+  canvas.addEventListener('pointerdown', event => { canvas.setPointerCapture(event.pointerId); pointers.set(event.pointerId, canvasPoint(event)); if (pointers.size === 1) { const point = canvasPoint(event); dragStart = { x: point.x, y: point.y, panX, panY }; } else if (pointers.size === 2) { const point = midpoint(); pinchStart = { distance: distance(), zoom: cropZoom, x: point.x, y: point.y }; dragStart = undefined; } });
+  canvas.addEventListener('pointermove', event => { if (!pointers.has(event.pointerId)) return; const point = canvasPoint(event); pointers.set(event.pointerId, point); if (pointers.size === 1 && dragStart) { panX = dragStart.panX + point.x - dragStart.x; panY = dragStart.panY + point.y - dragStart.y; drawCrop(); } else if (pointers.size === 2 && pinchStart) { const point = midpoint(); cropZoom = clamp(pinchStart.zoom * (distance() / pinchStart.distance), 1, 4); panX += point.x - pinchStart.x; panY += point.y - pinchStart.y; pinchStart = { distance: distance(), zoom: cropZoom, x: point.x, y: point.y }; drawCrop(); } });
+  const releasePointer = (event: PointerEvent) => { pointers.delete(event.pointerId); if (pointers.size < 2) pinchStart = undefined; if (!pointers.size) dragStart = undefined; };
+  canvas.addEventListener('pointerup', releasePointer); canvas.addEventListener('pointercancel', releasePointer); canvas.addEventListener('wheel', event => { event.preventDefault(); cropZoom = clamp(cropZoom + (event.deltaY < 0 ? 0.08 : -0.08), 1, 4); drawCrop(); }, { passive: false });
+  document.querySelector<HTMLButtonElement>('[data-media-open]')?.addEventListener('click', () => mediaDialog?.showModal()); document.querySelector<HTMLButtonElement>('[data-media-close]')?.addEventListener('click', () => mediaDialog?.close()); document.querySelector<HTMLButtonElement>('[data-crop-cancel]')?.addEventListener('click', () => { const transfer = new DataTransfer(); if (committedFile) transfer.items.add(committedFile); coverFile.files = transfer.files; cropDialog?.close(); }); document.querySelector<HTMLButtonElement>('[data-crop-reset]')?.addEventListener('click', resetCrop);
+  document.querySelectorAll<HTMLButtonElement>('[data-media-url]').forEach(item => item.addEventListener('click', () => { mediaDialog?.close(); openCrop(item.dataset.mediaUrl || ''); }));
+  const validateCover = () => {
+    const file = coverFile.files?.[0];
+    const validType = !file || ['image/jpeg','image/png','image/webp','image/avif'].includes(file.type);
+    coverFile.setCustomValidity(file && (!file.size || file.size > 5 * 1024 * 1024 || !validType) ? 'Pilih gambar JPEG, PNG, WebP, atau AVIF maksimal 5 MB.' : '');
+    coverAlt.setCustomValidity((coverUrl.value || file) && !coverAlt.value.trim() ? 'Teks alternatif gambar wajib diisi.' : '');
+  };
+  coverFile.addEventListener('change', () => { validateCover(); const file = coverFile.files?.[0]; if (file && !coverFile.validationMessage) openCrop('', file); });
+  coverAlt.addEventListener('input', validateCover);
+  document.querySelector<HTMLButtonElement>('[data-cover-change]')?.addEventListener('click', showSources);
+  document.querySelector<HTMLButtonElement>('[data-crop-save]')?.addEventListener('click', () => { const g = geometry(); if (!g || !cropImage) return; const output = document.createElement('canvas'); output.width = frame.width; output.height = frame.height; output.getContext('2d')!.drawImage(cropImage, g.x - frame.x, g.y - frame.y, g.width, g.height); output.toBlob(blob => { if (!blob) return; const file = new File([blob], 'cover-crop.jpg', { type: 'image/jpeg' }); const transfer = new DataTransfer(); transfer.items.add(file); coverFile.files = transfer.files; committedFile = file; coverUrl.value = ''; showCover(output.toDataURL('image/jpeg', 0.9)); cropDialog?.close(); }, 'image/jpeg', 0.9); });
+  if (coverUrl.value) showCover(coverUrl.value);
+  validateSlug();
+  validateCover();
+  document.querySelectorAll<HTMLButtonElement>('[data-insert]').forEach(button => button.addEventListener('click', () => {
+    const selected = body.value.slice(body.selectionStart,body.selectionEnd) || 'teks';
+    const formats: Record<string,string> = { heading:`\n## ${selected}\n`, bold:`**${selected}**`, italic:`*${selected}*`, list:`\n- ${selected}\n- Item berikutnya\n`, link:`[${selected}](https://)`, image:`![Deskripsi gambar](/media/tautan-gambar.webp)` };
+    body.setRangeText(formats[button.dataset.insert!],body.selectionStart,body.selectionEnd,'end'); body.focus(); body.dispatchEvent(new Event('input',{ bubbles:true }));
+  }));
+  document.querySelectorAll<HTMLButtonElement>('[data-editor-tab]').forEach(tab => tab.addEventListener('click', () => { const preview = tab.dataset.editorTab === 'preview'; document.querySelectorAll<HTMLButtonElement>('[data-editor-tab]').forEach(item => item.setAttribute('aria-selected', String(item === tab))); body.hidden = preview; document.querySelector<HTMLElement>('#markdown-preview')!.hidden = !preview; if (preview) document.querySelector<HTMLButtonElement>('#markdown-preview-button')?.click(); }));
+  document.querySelector<HTMLButtonElement>('#markdown-preview-button')?.addEventListener('click', async event => {
+    const button = event.currentTarget as HTMLButtonElement, target = document.querySelector<HTMLElement>('#markdown-preview')!; button.disabled = true; target.hidden = false; target.textContent = 'Memuat pratinjauâ€¦';
+    try {
+      const data = new FormData(); data.set('body',body.value); data.set('csrf',document.querySelector<HTMLInputElement>('[name=csrf]')!.value);
+      const response = await fetch('/admin/markdown/',{ method:'POST',body:data });
+      if (!response.ok) throw new Error(); const result = await response.json(); target.innerHTML = result.html;
+    } catch { target.textContent = 'Pratinjau gagal dimuat. Simpan draft dan muat ulang halaman.'; } finally { button.disabled = false; }
+  });
+  const postForm = document.querySelector<HTMLFormElement>('#post-editor')!;
+  const excerptField = document.querySelector<HTMLTextAreaElement>('[name="excerpt"]')!;
+  const authorField = document.querySelector<HTMLInputElement>('[name="author"]')!;
+  postForm.addEventListener('submit', event => {
+    const submitter = event.submitter as HTMLButtonElement | null;
+    const publish = submitter?.name === 'action' && submitter.value === 'publish';
+    body.setCustomValidity(publish && !body.value.trim() ? 'Isi artikel wajib diisi sebelum terbit.' : '');
+    excerptField.setCustomValidity(publish && !excerptField.value.trim() ? 'Ringkasan wajib diisi sebelum terbit.' : '');
+    authorField.setCustomValidity(publish && !authorField.value.trim() ? 'Penulis wajib diisi sebelum terbit.' : '');
+    validateCover();
+    if (!postForm.checkValidity()) { event.preventDefault(); postForm.reportValidity(); }
+  });
+</script>
+

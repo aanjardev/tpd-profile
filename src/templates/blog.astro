@@ -1,0 +1,21 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
+import BlogCards from '../components/BlogCards.astro';
+import { listPublished, categories } from '../cms/blog';
+import { translate, pathFor, type Locale } from '../i18n';
+interface Props { locale: Locale; }
+const { locale } = Astro.props, t = translate(locale);
+const query = (Astro.url.searchParams.get('q') || '').trim().slice(0,100), category = Astro.url.searchParams.get('category') || '';
+const all = listPublished(locale).filter(post => (!category || post.content.categoryId === category) && `${post.content.title} ${post.content.excerpt} ${post.content.body}`.toLowerCase().includes(query.toLowerCase()));
+const totalPages = Math.max(1,Math.ceil(all.length/9));
+const requestedPage = Number(Astro.url.searchParams.get('page') || 1);
+const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+if (page > totalPages) Astro.response.status = 404;
+const posts = all.slice((page-1)*9,page*9), categoryList = categories();
+const pageUrl = (target: number) => { const params = new URLSearchParams(); if(query) params.set('q',query); if(category) params.set('category',category); if(target > 1) params.set('page',String(target)); return `${pathFor('blog',locale)}${params.size ? `?${params}` : ''}`; };
+---
+<BaseLayout locale={locale} page="blog" title={t('Blog')} description={t('Cerita, informasi perjalanan, dan kabar terbaru dari PT Tiga Pilar Dewata.')} canonicalPath={page > 1 ? pageUrl(page) : pathFor('blog',locale)}>
+  <PageHero label={t('Blog')} title={t('Artikel & Kabar')} description={t('Cerita, informasi perjalanan, dan kabar terbaru dari PT Tiga Pilar Dewata.')} />
+  <section class="section"><div class="container"><form class="blog-filters" action={pathFor('blog',locale)} method="get"><label><span>{t('Cari artikel')}</span><input type="search" name="q" value={query} placeholder={t('Cari artikel')} maxlength="100"/></label><label><span>{t('Semua kategori')}</span><select name="category"><option value="">{t('Semua kategori')}</option>{categoryList.map(item => <option value={item.id} selected={category === item.id}>{locale === 'id' ? item.name_id : item.name_en}</option>)}</select></label><button class="button">{t('Cari')}</button></form>{posts.length ? <BlogCards posts={posts} locale={locale}/> : <div class="blog-empty"><h2>{t('Belum ada artikel.')}</h2><a class="text-link" href={pathFor('blog',locale)}>{t('Semua artikel')} →</a></div>}{totalPages > 1 && <nav class="blog-pagination" aria-label={locale === 'id' ? 'Halaman artikel' : 'Article pages'}>{page > 1 && <a class="button" href={pageUrl(page-1)}>← {t('Sebelumnya')}</a>}<span>{page} / {totalPages}</span>{page < totalPages && <a class="button" href={pageUrl(page+1)}>{t('Berikutnya')} →</a>}</nav>}</div></section>
+</BaseLayout>

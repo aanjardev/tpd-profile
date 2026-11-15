@@ -1,0 +1,5 @@
+deploy/snail2/*.sh text eol=lf
+deploy/snail2/*.conf text eol=lf
+deploy/snail2/cms/*.sh text eol=lf
+deploy/snail2/cms/*.conf text eol=lf
+deploy/snail2/cms/*.service text eol=lf

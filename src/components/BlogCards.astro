@@ -1,0 +1,11 @@
+---
+import { categories, postPath, type PublicPost } from '../cms/blog';
+import { translate, type Locale } from '../i18n';
+interface Props { posts: PublicPost[]; locale: Locale; }
+const { posts, locale } = Astro.props;
+const t = translate(locale), categoryList = categories();
+---
+<div class="blog-grid">{posts.map(post => {
+  const data = post.content, category = categoryList.find(item => item.id === data.categoryId);
+  return <article class="blog-card">{data.cover ? <a class="blog-card-image" href={postPath(post)} tabindex="-1" aria-hidden="true"><img src={data.cover} alt="" width="720" height="480" loading="lazy"/></a> : <div class="blog-card-placeholder" aria-hidden="true"><img src="/brand/symbol.png" alt="" width="72" height="72"/></div>}<div class="blog-card-content"><div class="blog-meta">{category && <span>{locale === 'id' ? category.name_id : category.name_en}</span>}<time datetime={post.first_published_at!}>{new Date(post.first_published_at!).toLocaleDateString(locale === 'id' ? 'id-ID' : 'en-GB',{ day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Jakarta' })}</time></div><h3><a href={postPath(post)}>{data.title}</a></h3><p>{data.excerpt}</p><a class="text-link" href={postPath(post)} aria-label={`${t('Baca artikel')}: ${data.title}`}>{t('Baca artikel')} →</a></div></article>;
+})}</div>

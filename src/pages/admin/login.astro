@@ -1,0 +1,19 @@
+﻿---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
+import { login, sessionCookie } from '../../cms/auth';
+if (Astro.locals.admin) return Astro.redirect('/admin/', 303);
+let error = '';
+let email = '';
+if (Astro.request.method === 'POST') {
+  email = String(Astro.locals.form?.get('email') || '');
+  try {
+    const token = await login(email, String(Astro.locals.form?.get('password') || ''));
+    Astro.cookies.set(sessionCookie, token, { httpOnly: true, secure: (process.env.CMS_ORIGIN || Astro.url.origin).startsWith('https:'), sameSite: 'strict', path: '/', maxAge: 12 * 60 * 60 });
+    return Astro.redirect('/admin/', 303);
+  } catch (cause) { error = (cause as Error).message; }
+}
+---
+<AdminLayout title="Selamat datang kembali"><img class="login-logo" src="/brand/symbol.png" alt="Tiga Pilar Dewata" width="70" height="70"/><div class="panel login-panel"><div class="login-panel-heading"><p class="eyebrow">CONTENT STUDIO</p><h2>Masuk ke admin</h2></div>{error && <p class="notice error" role="alert">{error}</p>}<form method="post"><label class="field"><span>Email</span><input type="email" name="email" value={email} autocomplete="username" required maxlength="254"/></label><label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required maxlength="256"/></label><button class="button" style="width:100%"><AdminIcon name="logout" size={16}/>Masuk ke admin â†’</button></form></div></AdminLayout>
+
+

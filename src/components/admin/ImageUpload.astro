@@ -1,0 +1,15 @@
+---
+interface Props { keyName: string; label: string; value: string; }
+const { keyName, label, value } = Astro.props;
+---
+<fieldset id={`image-field-${keyName}`} class="image-upload" data-image-upload={keyName}>
+  <legend>{label}</legend>
+  <img class="image-upload-preview" src={value} alt={`Preview ${label.toLowerCase()}`} data-image-preview data-current-src={value}/>
+  <p class="help image-upload-status" data-image-status role="status">Gambar tersimpan</p>
+  <div class="image-upload-controls">
+    <input class="image-upload-input" type="file" id={`image-${keyName}`} name={`image.${keyName}`} accept="image/jpeg,image/png,image/webp,image/avif" aria-label={`Pilih gambar pengganti untuk ${label.toLowerCase()}`} aria-describedby={`image-help-${keyName}`}/>
+    <label class="button secondary" for={`image-${keyName}`}>Pilih gambar pengganti</label>
+    <button class="button secondary" type="button" data-image-cancel hidden>Batalkan penggantian</button>
+  </div>
+  <p class="help" id={`image-help-${keyName}`}>JPEG, PNG, WebP, atau AVIF. Maksimal 5 MB.</p>
+</fieldset>
